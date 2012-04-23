@@ -31,6 +31,7 @@ from django.views.decorators.csrf import csrf_exempt, csrf_response_exempt
 from django.forms.models import inlineformset_factory
 from django.db.models import Q
 import logging
+import traceback
 from geonode.maps.utils import forward_mercator
 
 logger = logging.getLogger("geonode.maps.views")
@@ -933,6 +934,44 @@ def layer_replace(request, layername):
             for e in form.errors.values():
                 errors.extend([escape(v) for v in e])
             return HttpResponse(json.dumps({ "success": False, "errors": errors}))
+
+def json_response(body=None, errors=None, redirect_to=None, exception=None):
+   """Create a proper JSON response. If body is provided, this is the response.
+   If errors is not None, the response is a success/errors json object.
+   If redirect_to is not None, the response is a success=True, redirect_to object
+   If the exception is provided, it will be logged. If body is a string, the
+   exception message will be used as a format option to that string and the
+   result will be a success=False, errors = body % exception
+   """
+   if errors:
+       body = {
+           'success' : False,
+           'errors' : errors
+       }
+   elif redirect_to:
+       body = {
+           'success' : True,
+           'redirect_to' : redirect_to
+       }
+   elif exception:
+       if body is None:
+           body = "Unexpected exception %s" % exception
+       else:
+           body = body % exception
+       logger.warn(body)
+       logger.warn(traceback.format_exc(exception))
+       body = {
+           'success' : False,
+           'errors' : [ body ]
+       }
+   elif body:
+       pass
+   else:
+       raise Exception("must call with body, errors or redirect_to")
+ 
+   if not isinstance(body, basestring):
+       body = json.dumps(body)
+   return HttpResponse(body, mimetype = "application/json")
 
 
 @login_required
