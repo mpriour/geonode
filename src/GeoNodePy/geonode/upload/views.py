@@ -5,7 +5,7 @@ The upload process may be multi step so views are all handled internally here
 by the view function.
 
 The pattern to support separation of view/logic is each step in the upload
-process is suffixed with "_step". The view for that step is suffixed with 
+process is suffixed with "_step". The view for that step is suffixed with
 "_step_view". The goal of seperation of view/logic is to support various
 programatic uses of this API. The logic steps should not accept request objects
 or return response objects.
@@ -31,17 +31,18 @@ import json
 import os
 
 
-
 _SESSION_KEY = 'geonode_upload_session'
+
 
 def _redirect(step):
     return json_response(redirect_to=reverse('data_upload', args=[step]))
-    
+
+
 class TimeForm(forms.Form):
     presentation_strategy = forms.CharField(required=False)
     srs = forms.CharField(required=False)
     precision_value = forms.IntegerField(required=False)
-    precision_step = forms.ChoiceField(required=False,choices=[
+    precision_step = forms.ChoiceField(required=False, choices=[
         ('years',)*2,
         ('months',)*2,
         ('days',)*2,
@@ -49,85 +50,94 @@ class TimeForm(forms.Form):
         ('minutes',)*2,
         ('seconds',)*2
     ])
-    
+
     def __init__(self, *args, **kwargs):
         # have to remove these from kwargs or Form gets mad
-        time_names = kwargs.pop('time_names',None)
-        text_names = kwargs.pop('text_names',None)
-        year_names = kwargs.pop('year_names',None)
-        super(TimeForm, self).__init__(*args,**kwargs)
-        self._build_choice('time_attribute',time_names)
-        self._build_choice('end_time_attribute',time_names)
-        self._build_choice('text_attribute',text_names)
-        self._build_choice('end_text_attribute',text_names)
+        time_names = kwargs.pop('time_names', None)
+        text_names = kwargs.pop('text_names', None)
+        year_names = kwargs.pop('year_names', None)
+        super(TimeForm, self).__init__(*args, **kwargs)
+        self._build_choice('time_attribute', time_names)
+        self._build_choice('end_time_attribute', time_names)
+        self._build_choice('text_attribute', text_names)
+        self._build_choice('end_text_attribute', text_names)
         if text_names:
             self.fields['text_attribute_format'] = forms.CharField(required=False)
-        self._build_choice('year_attribute',year_names)
-        self._build_choice('end_year_attribute',year_names)
-            
+        self._build_choice('year_attribute', year_names)
+        self._build_choice('end_year_attribute', year_names)
+
     def _build_choice(self, att, names):
         if names:
-            choices =  [ ("","<None>") ] + [ (a,a) for a in names ]
-            self.fields[att] = forms.ChoiceField(choices=choices,required=False)
+            choices = [('', '<None>')] + [(a, a) for a in names]
+            self.fields[att] = forms.ChoiceField(
+                choices=choices, required=False)
     # @todo implement clean
-    
+
+
 def _create_time_form(import_session, form_data):
     feature_type = import_session.tasks[0].items[0].resource
     filter_type = lambda b : [ att.name for att in feature_type.attributes if att.binding == b]
+
     args = dict(
-        time_names = filter_type('java.util.Date'),
-        text_names = filter_type('java.lang.String'),
-        year_names = filter_type('java.lang.Integer') + filter_type('java.lang.Long') +
-            filter_type('java.lang.Double')
+        time_names=filter_type('java.util.Date'),
+        text_names=filter_type('java.lang.String'),
+        year_names=filter_type('java.lang.Integer') +
+          filter_type('java.lang.Long') +
+          filter_type('java.lang.Double')
     )
     if form_data:
-        return TimeForm(form_data,**args)
+        return TimeForm(form_data, **args)
     return TimeForm(**args)
+
 
 def save_step_view(req, session):
     assert session is None
-    
+
     form = NewLayerUploadForm(req.POST, req.FILES)
     tempdir = None
     if form.is_valid():
         tempdir, base_file = form.write_files()
         base_file = rename_and_prepare(base_file)
         name, __ = os.path.splitext(os.path.basename(base_file))
-        import_session = save_step(req.user, name, base_file, overwrite=False) 
+        import_session = save_step(req.user, name, base_file, overwrite=False)
         req.session[_SESSION_KEY] = UploaderSession(
-            tempdir = tempdir,
-            base_file = base_file,
-            name = name,
-            import_session = import_session,
-            layer_abstract = form.cleaned_data["abstract"],
-            layer_title = form.cleaned_data["layer_title"],
-            permissions = form.cleaned_data["permissions"]
+            tempdir=tempdir,
+            base_file=base_file,
+            name=name,
+            import_session=import_session,
+            layer_abstract=form.cleaned_data["abstract"],
+            layer_title=form.cleaned_data["layer_title"],
+            permissions=form.cleaned_data["permissions"]
         )
         return _redirect('time')
     else:
         errors = []
         for e in form.errors.values():
             errors.extend([escape(v) for v in e])
-        return json_response(errors = errors)
-    
+        return json_response(errors=errors)
+
+
 def data_upload_progress(req, upload_session):
     """This would not be needed if geoserver REST did not require admin role
     and is an inefficient way of getting this information"""
     import_session = upload_session.import_session
     progress = import_session.tasks[0].items[0].get_progress()
-    return HttpResponse(json.dumps(progress),"application/json")
+    return HttpResponse(json.dumps(progress), "application/json")
+
 
 def time_step_context(import_session, form_data):
-    '''Create the context for the time step view'''
-    
-    context =  {
-        'time_form' : _create_time_form(import_session, form_data),
-        'layer_name' : import_session.tasks[0].items[0].layer.name,
+    """Create the context for the time step view"""
+
+    context = {
+        'time_form': _create_time_form(import_session, form_data),
+        'layer_name': import_session.tasks[0].items[0].layer.name,
     }
 
     if settings.DB_DATASTORE:
         # we are importing to a database, use async
-        context['progress_endpoint'] = reverse('data_upload',args=['progress'])
+        context['progress_endpoint'] = reverse(
+            'data_upload', args=['progress']
+            )
 
     # check for various recoverable incomplete states
     if import_session.tasks[0].state == 'INCOMPLETE':
@@ -143,66 +153,71 @@ def time_step_context(import_session, form_data):
 def time_step_view(request, upload_session):
     if request.method == 'GET':
         return render_to_response('upload/layer_upload_time.html',
-            RequestContext(request, time_step_context(upload_session.import_session, form_data=None))
+            RequestContext(
+                request,
+                time_step_context(
+                    upload_session.import_session, form_data=None)
+                )
         )
     elif request.method != 'POST':
         raise Exception()
-        
+
     import_session = upload_session.import_session
-        
+
     form = _create_time_form(import_session, request.POST)
     #@todo validation feedback
     if not form.is_valid():
         raise Exception("form invalid")
-    
+
     cleaned = form.cleaned_data
-    
+
     time_attribute, time_transform_type = None, None
     end_time_attribute, end_time_transform_type = None, None
-    
+
     field_collectors = [
-        ('time_attribute',None),
-        ('text_attribute','DateFormatTransform'),
-        ('year_attribute','IntegerFieldToDateTransform')
+        ('time_attribute', None),
+        ('text_attribute', 'DateFormatTransform'),
+        ('year_attribute', 'IntegerFieldToDateTransform')
     ]
-    
+
     for field, transform_type in field_collectors:
-        time_attribute = cleaned.get( field, None)
+        time_attribute = cleaned.get(field, None)
         if time_attribute:
             time_transform_type = transform_type
             break
     for field, transform_type in field_collectors:
-        end_time_attribute = cleaned.get( "end_" + field, None)
+        end_time_attribute = cleaned.get('end_' + field, None)
         if end_time_attribute:
             end_time_transform_type = transform_type
             break
-            
+
     async = isinstance(settings.DB_DATASTORE, basestring)
     try:
         time_step(
             upload_session,
-            time_attribute = time_attribute,
-            time_transform_type = time_transform_type,
-            time_format = cleaned.get('text_attribute_format',None),
-            end_time_attribute = end_time_attribute,
-            end_time_transform_type = end_time_transform_type,
-            end_time_format = cleaned.get('end_text_attribute_format',None),
-            presentation_strategy = cleaned['presentation_strategy'],
-            precision_value = cleaned['precision_value'],
-            precision_step = cleaned['precision_step'],
-            srs = cleaned.get('srs',None)
+            time_attribute=time_attribute,
+            time_transform_type=time_transform_type,
+            time_format=cleaned.get('text_attribute_format', None),
+            end_time_attribute=end_time_attribute,
+            end_time_transform_type=end_time_transform_type,
+            end_time_format=cleaned.get('end_text_attribute_format', None),
+            presentation_strategy=cleaned['presentation_strategy'],
+            precision_value=cleaned['precision_value'],
+            precision_step=cleaned['precision_step'],
+            srs=cleaned.get('srs', None)
         )
         target = run_import(upload_session, async)
     except Exception, ex:
-        return json_response(exception=ex);
+        return json_response(exception=ex)
 
     upload_session.set_target(target)
-    
-    redirect_to = reverse('data_upload',args=['final'])
+
+    redirect_to = reverse('data_upload', args=['final'])
     if async:
-        return json_response(redirect_to= redirect_to)
-    
+        return json_response(redirect_to=redirect_to)
+
     return HttpResponseRedirect(redirect_to)
+
 
 def final_step_view(req, upload_session):
     saved_layer = final_step(upload_session, req.user)
@@ -210,44 +225,46 @@ def final_step_view(req, upload_session):
 
 
 _steps = {
-    'save' : save_step_view,
-    'progress' : data_upload_progress,
-    'time' : time_step_view,
-    'final' : final_step_view
+    'save': save_step_view,
+    'progress': data_upload_progress,
+    'time': time_step_view,
+    'final': final_step_view
 }
-    
+
+
 def view(req, step):
     """Main uploader view"""
-    
+
     upload_session = None
-    
+
     if step is None:
         step = 'save'
-        
+
         # @todo should warn user if session is being abandoned!
         if _SESSION_KEY in req.session:
             del req.session[_SESSION_KEY]
-        
+
         if req.method == 'GET':
             s = os.statvfs('/')
             mb = s.f_bsize * s.f_bavail / (1024. * 1024)
             return render_to_response('upload/layer_upload.html',
                 RequestContext(req, {
-                'storage_remaining' : "%d MB" % mb,
-                'enough_storage' : mb > 64
+                'storage_remaining': "%d MB" % mb,
+                'enough_storage': mb > 64
             }))
 
     else:
+        # Should we use an exception here?
         assert _SESSION_KEY in req.session, 'Expected uploader session for step %s' % step
         upload_session = req.session[_SESSION_KEY]
-        
+
     try:
         resp = _steps[step](req, upload_session)
         if upload_session:
             req.session[_SESSION_KEY] = upload_session
             Upload.objects.update_from_session(upload_session.import_session)
         return resp
-    except Exception,e:
+    except Exception, e:
         if upload_session:
             upload_session.cleanup()
-        return json_response('Error in upload step : %s',exception = e)
+        return json_response('Error in upload step : %s', exception=e)
