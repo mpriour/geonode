@@ -1,5 +1,6 @@
 {% extends "page_layout.html" %}
 {% load i18n %}
+{% load static from staticfiles %}
 
 {% block title %} {% trans "Upload Layer Step 2" %} - {{ block.super }} {% endblock %}
 
@@ -205,10 +206,13 @@
     </pre>
     </p>
 </div>
+<script type="text/javascript" src="{{ STATIC_URL }}script/layer_upload_time.js"></script>
+<script type="text/javascript" src="{{ STATIC_URL }}script/upload_common.js"></script>
 <script type="text/javascript">
 {% autoescape off %}
-    var progressEndpoint = "{{ progress_endpoint }}";
+{% if async_upload %}
+enableUploadProgress('timeForm');
+{% endif %}
 {% endautoescape %}
 </script>
-<script type="text/javascript" src="{{ STATIC_URL }}script/layer_upload_time.js"></script>
 {% endblock %}

@@ -26,13 +26,26 @@ from django.utils.html import escape
 from django.core.urlresolvers import reverse
 from django.shortcuts import render_to_response
 from django.template import RequestContext
+from django.contrib.auth.decorators import login_required
 
 import json
 import os
 
 
 _SESSION_KEY = 'geonode_upload_session'
+_ALLOW_TIME_STEP = hasattr(settings, "UPLOADER_SHOW_TIME_STEP") and settings.UPLOADER_SHOW_TIME_STEP or False
+_ASYNC_UPLOAD = settings.DB_DATASTORE == True
 
+# at the moment, the various time support transformations require the database
+if _ALLOW_TIME_STEP and not _ASYNC_UPLOAD:
+    raise Exception("To support the time step, you must enable DB_DATASTORE")
+
+def _progress_redirect(step, endpoint):
+    return json_response(dict(
+        success = True,
+        redirect_to= reverse('data_upload', args=[step]),
+        progress = endpoint
+    ))
 
 def _redirect(step):
     return json_response(redirect_to=reverse('data_upload', args=[step]))
@@ -91,6 +104,16 @@ def _create_time_form(import_session, form_data):
 
 
 def save_step_view(req, session):
+    if req.method == 'GET':
+        s = os.statvfs('/')
+        mb = s.f_bsize * s.f_bavail / (1024. * 1024)
+        return render_to_response('upload/layer_upload.html',
+            RequestContext(req, {
+            'storage_remaining': "%d MB" % mb,
+            'enough_storage': mb > 64,
+            'async_upload' : _ASYNC_UPLOAD
+        }))
+        
     assert session is None
 
     form = NewLayerUploadForm(req.POST, req.FILES)
@@ -100,7 +123,7 @@ def save_step_view(req, session):
         base_file = rename_and_prepare(base_file)
         name, __ = os.path.splitext(os.path.basename(base_file))
         import_session = save_step(req.user, name, base_file, overwrite=False)
-        req.session[_SESSION_KEY] = UploaderSession(
+        upload_session = req.session[_SESSION_KEY] = UploaderSession(
             tempdir=tempdir,
             base_file=base_file,
             name=name,
@@ -109,7 +132,10 @@ def save_step_view(req, session):
             layer_title=form.cleaned_data["layer_title"],
             permissions=form.cleaned_data["permissions"]
         )
-        return _redirect('time')
+        if _ALLOW_TIME_STEP:
+            return _redirect('time')
+        
+        return run_response(upload_session, True)
     else:
         errors = []
         for e in form.errors.values():
@@ -131,13 +157,8 @@ def time_step_context(import_session, form_data):
     context = {
         'time_form': _create_time_form(import_session, form_data),
         'layer_name': import_session.tasks[0].items[0].layer.name,
+        'async_upload' : _ASYNC_UPLOAD
     }
-
-    if settings.DB_DATASTORE:
-        # we are importing to a database, use async
-        context['progress_endpoint'] = reverse(
-            'data_upload', args=['progress']
-            )
 
     # check for various recoverable incomplete states
     if import_session.tasks[0].state == 'INCOMPLETE':
@@ -191,7 +212,6 @@ def time_step_view(request, upload_session):
             end_time_transform_type = transform_type
             break
 
-    async = isinstance(settings.DB_DATASTORE, basestring)
     try:
         time_step(
             upload_session,
@@ -206,18 +226,32 @@ def time_step_view(request, upload_session):
             precision_step=cleaned['precision_step'],
             srs=cleaned.get('srs', None)
         )
-        target = run_import(upload_session, async)
+    except Exception, ex:
+        return json_response(exception=ex)
+
+    return run_response(upload_session, False)
+
+
+def run_response(upload_session, ext_resp):
+    '''run the upload_session and respond
+    
+    ext_resp: if True, reply using extjs json
+    '''
+    try:
+        target = run_import(upload_session, _ASYNC_UPLOAD)
     except Exception, ex:
         return json_response(exception=ex)
 
     upload_session.set_target(target)
 
-    redirect_to = reverse('data_upload', args=['final'])
-    if async:
-        return json_response(redirect_to=redirect_to)
+    if _ASYNC_UPLOAD:
+        return _progress_redirect('final',reverse(
+            'data_upload', args=['progress']
+        ))
+    if ext_resp:
+        return _redirect('final')
 
-    return HttpResponseRedirect(redirect_to)
-
+    return HttpResponseRedirect(reverse('data_upload', args=['final']))
 
 def final_step_view(req, upload_session):
     saved_layer = final_step(upload_session, req.user)
@@ -231,7 +265,7 @@ _steps = {
     'final': final_step_view
 }
 
-
+@login_required
 def view(req, step):
     """Main uploader view"""
 
@@ -243,15 +277,6 @@ def view(req, step):
         # @todo should warn user if session is being abandoned!
         if _SESSION_KEY in req.session:
             del req.session[_SESSION_KEY]
-
-        if req.method == 'GET':
-            s = os.statvfs('/')
-            mb = s.f_bsize * s.f_bavail / (1024. * 1024)
-            return render_to_response('upload/layer_upload.html',
-                RequestContext(req, {
-                'storage_remaining': "%d MB" % mb,
-                'enough_storage': mb > 64
-            }))
 
     else:
         # Should we use an exception here?
