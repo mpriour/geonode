@@ -152,6 +152,8 @@ def rename_and_prepare(base_file):
             # @todo other files - need to unify extension handling somewhere
             if ext.lower() == '.shp':
                 main_file = f
+            elif ext.lower() == '.tif':
+                main_file = f
         if not main_file: raise Exception('Could not locate a shapefile')
         if rename:
             # dang, have to unpack and rename
