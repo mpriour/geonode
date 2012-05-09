@@ -1,7 +1,7 @@
 function pollProgress(redirectTo, progressEndpoint, form) {
     var progress = Ext.MessageBox.progress("Please wait","Ingesting data"),
     formDom = form.dom;
-    function success(response,redirectTo, progressEndpoint, form) {
+    function success(response,redirectTo) {
         var state, msg;
         response = Ext.decode(response.responseText);
         // response will contain state, one of :
@@ -44,7 +44,7 @@ function pollProgress(redirectTo, progressEndpoint, form) {
         Ext.Ajax.request({
             url : progressEndpoint,
             success: function(response) {
-                success(response,redirectTo, progressEndpoint, form);
+                success(response,redirectTo);
             }
         });
     }

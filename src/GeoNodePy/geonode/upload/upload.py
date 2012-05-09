@@ -447,7 +447,7 @@ def time_step(upload_session, time_attribute, time_transform_type,
 
 def final_step(upload_session, user):
     target = upload_session.import_target
-    if target is None: raise 'shitbag'
+    if target is None: raise Exception('error')
     import_session = upload_session.import_session
 
     _log('Reloading session %s to check validity', import_session.id)
@@ -460,6 +460,7 @@ def final_step(upload_session, user):
     # name is chosen
 
     cat = Layer.objects.gs_catalog
+    cat._cache.clear()
 
     # Create the style and assign it to the created resource
     # FIXME: Put this in gsconfig.py

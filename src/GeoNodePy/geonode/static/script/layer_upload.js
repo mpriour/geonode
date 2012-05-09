@@ -343,7 +343,11 @@ function init(options) {
                 try {
                     var result = Ext.decode(xhr.responseText);
                     if (result.success) {
-                        document.location = result.redirect_to;
+                        if (result.progress) {
+                            pollProgress(result.redirect_to, result.progress, fp.getForm().el);
+                        } else {
+                            document.location = result.redirect_to;
+                        }
                     } else {
                         error(ev, result);
                     }
