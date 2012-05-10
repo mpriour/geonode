@@ -149,23 +149,17 @@ function init(options) {
                     fp.getForm().submit({
                         url: options.form_target,
                         waitMsg: gettext('Uploading your data...'),
-                        success: function(fp, o) {
-                            document.location = o.result.redirect_to;
+                        success: function(form, action) {
+                            document.location = action.result.redirect_to;
                         },
-                        failure: function(fp, o) {
-                            error_message = '<ul>';
-                            for (var i = 0; i < o.result.errors.length; i++) {
-                                error_message += '<li>' + o.result.errors[i] + '</li>'
-                            }
-                            error_message += '</ul>'
-
+                        failure: function(form, action) {
                             Ext.Msg.show({
-                                title: gettext("Error"),
-                                msg: error_message,
-                                minWidth: 200,
+                                title: gettext('Error'),
+                                msg: action.response.responseText,
+                                midWidth: 200,
                                 modal: true,
                                 icon: Ext.Msg.ERROR,
-                                buttons: Ext.Msg.OK
+                                buttons: Ext.Msg.Ok
                             });
                         }
                     });
