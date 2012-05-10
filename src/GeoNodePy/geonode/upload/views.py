@@ -234,7 +234,6 @@ def time_step_view(request, upload_session):
 
 def run_response(upload_session, ext_resp):
     '''run the upload_session and respond
-    
     ext_resp: if True, reply using extjs json
     '''
     try:
@@ -245,13 +244,24 @@ def run_response(upload_session, ext_resp):
     upload_session.set_target(target)
 
     if _ASYNC_UPLOAD:
-        return _progress_redirect('final',reverse(
+        return _progress_redirect('final', reverse(
             'data_upload', args=['progress']
         ))
     if ext_resp:
-        return _redirect('final')
+        # in order for ext.js to correctly parse a json response with a
+        # file uploader, we must return a content type of text/html
+        # for more information please see the ext.js document.
+        # http://docs.sencha.com/ext-js/3-4/#!/api/Ext.form.BasicForm-cfg-fileUpload
+
+        return HttpResponse(
+            simplejson.dumps(
+                {'success': True,
+                 'redirect_to': reverse('data_upload', args=['final'])}),
+                 content_type='text/html'
+            )
 
     return HttpResponseRedirect(reverse('data_upload', args=['final']))
+
 
 def final_step_view(req, upload_session):
     saved_layer = final_step(upload_session, req.user)
