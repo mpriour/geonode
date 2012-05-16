@@ -443,20 +443,6 @@ Contents:
         resp,content = h.request(url,'GET')
         return HttpResponse(content, status=resp.status)
 
-
-
-def view_map_permissions(request, mapid):
-    map = get_object_or_404(Map,pk=mapid) 
-
-    if not request.user.has_perm('maps.change_map_permissions', obj=map):
-        return HttpResponse(loader.render_to_string('401.html', 
-            RequestContext(request, {'error_message': 
-                _("You are not permitted to view this map's permissions")})), status=401)
-
-    ctx = _view_perms_context(map, MAP_LEV_NAMES)
-    ctx['map'] = map
-    return render_to_response("maps/permissions.html", RequestContext(request, ctx))
-
 def set_layer_permissions(layer, perm_spec):
     if "authenticated" in perm_spec:
         layer.set_gen_level(AUTHENTICATED_USERS, perm_spec['authenticated'])
