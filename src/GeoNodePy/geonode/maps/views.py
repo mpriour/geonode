@@ -942,20 +942,6 @@ def json_response(body=None, errors=None, redirect_to=None, exception=None):
        body = json.dumps(body)
    return HttpResponse(body, mimetype = "application/json")
 
-
-@login_required
-def view_layer_permissions(request, layername):
-    layer = get_object_or_404(Layer,typename=layername) 
-
-    if not request.user.has_perm('maps.change_layer_permissions', obj=layer):
-        return HttpResponse(loader.render_to_string('401.html', 
-            RequestContext(request, {'error_message': 
-                _("You are not permitted to view this layer's permissions")})), status=401)
-    
-    ctx = _view_perms_context(layer, LAYER_LEV_NAMES)
-    ctx['layer'] = layer
-    return render_to_response("maps/layer_permissions.html", RequestContext(request, ctx))
-
 def _view_perms_context(obj, level_names):
 
     ctx =  obj.get_all_level_info()
