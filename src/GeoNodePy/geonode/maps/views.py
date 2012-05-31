@@ -16,8 +16,8 @@ from django.shortcuts import render_to_response, get_object_or_404
 from django.conf import settings
 from django.template import RequestContext, loader
 from django.utils.translation import ugettext as _
-import json
-import simplejson
+from django.utils import simplejson as json
+
 import math
 import httplib2 
 from owslib.csw import CswRecord, namespaces
@@ -31,6 +31,7 @@ from django.forms.models import inlineformset_factory
 from django.db.models import Q
 import logging
 import traceback
+import taggit
 from geonode.maps.utils import forward_mercator
 
 logger = logging.getLogger("geonode.maps.views")
@@ -69,6 +70,7 @@ def default_map_config():
 def bbox_to_wkt(x0, x1, y0, y1, srid="4326"):
     return 'SRID='+srid+';POLYGON(('+x0+' '+y0+','+x0+' '+y1+','+x1+' '+y1+','+x1+' '+y0+','+x0+' '+y0+'))'
 class ContactForm(forms.ModelForm):
+    keywords = taggit.forms.TagField()
     class Meta:
         model = Contact
         exclude = ('user',)
@@ -87,7 +89,7 @@ class LayerForm(forms.ModelForm):
     metadata_author = forms.ModelChoiceField(empty_label = "Person outside GeoNode (fill form)",
                                              label = "Metadata Author", required=False,
                                              queryset = Contact.objects.exclude(user=None))
-
+    keywords = taggit.forms.TagField()
     class Meta:
         model = Layer
         exclude = ('contacts','workspace', 'store', 'name', 'uuid', 'storeType', 'typename')
@@ -103,6 +105,7 @@ class PocForm(forms.Form):
 
 
 class MapForm(forms.ModelForm):
+    keywords = taggit.forms.TagField()
     class Meta:
         model = Map
         exclude = ('contact', 'zoom', 'projection', 'center_x', 'center_y', 'owner')
@@ -144,7 +147,7 @@ def maps(request, mapid=None):
                 response = HttpResponse('', status=201)
                 response['Location'] = map.id
                 return response
-            except simplejson.JSONDecodeError:
+            except json.JSONDecodeError:
                 return HttpResponse(status=400)
 
 def mapJSON(request, mapid):
@@ -596,7 +599,12 @@ def describemap(request, mapid):
         # Change metadata, return to map info page
         map_form = MapForm(request.POST, instance=map, prefix="map")
         if map_form.is_valid():
-            map_form.save()
+            map = map_form.save(commit=False)
+            if map_form.cleaned_data["keywords"]:
+                map.keywords.add(*map_form.cleaned_data["keywords"])
+            else:
+                map.keywords.clear()
+            map.save()
 
             return HttpResponseRedirect(reverse('geonode.maps.views.map_controller', args=(map.id,)))
     else:
@@ -696,6 +704,7 @@ def layer_metadata(request, layername):
         if request.method == "POST" and layer_form.is_valid():
             new_poc = layer_form.cleaned_data['poc']
             new_author = layer_form.cleaned_data['metadata_author']
+            new_keywords = layer_form.cleaned_data['keywords']
 
             if new_poc is None:
                 poc_form = ContactForm(request.POST, prefix="poc")
@@ -711,6 +720,7 @@ def layer_metadata(request, layername):
                 the_layer = layer_form.save(commit=False)
                 the_layer.poc = new_poc
                 the_layer.metadata_author = new_author
+                the_layer.keywords.add(*new_keywords)
                 the_layer.save()
                 return HttpResponseRedirect("/data/" + layer.typename)
 
@@ -842,7 +852,7 @@ def upload_layer(request):
                         )
                 return HttpResponse(json.dumps({
                     "success": True,
-                    "redirect_to": reverse('layer_metadata', args=[saved_layer.typename])}))
+                    "redirect_to": reverse('data_metadata', args=[saved_layer.typename])}))
             except Exception, e:
                 logger.exception("Unexpected error during upload.")
                 return HttpResponse(json.dumps({
@@ -888,7 +898,7 @@ def layer_replace(request, layername):
                 saved_layer = save(layer, base_file, request.user, overwrite=True)
                 return HttpResponse(json.dumps({
                     "success": True,
-                    "redirect_to": reverse('layer_metadata', args=[saved_layer.typename])}))
+                    "redirect_to": reverse('data_metadata', args=[saved_layer.typename])}))
             except Exception, e:
                 logger.exception("Unexpected error during upload.")
                 return HttpResponse(json.dumps({
