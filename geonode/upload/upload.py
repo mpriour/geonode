@@ -18,7 +18,7 @@ from django.conf import settings
 from django.utils.html import escape
 from django.contrib.auth.models import User
 from django.core.urlresolvers import reverse
-
+import uuid
 import logging
 import re
 import shutil
@@ -33,6 +33,8 @@ from geonode import GeoNodeException
 from geonode.layers.utils import get_valid_layer_name
 from geonode.layers.utils import layer_type
 from geonode.layers.models import Layer
+from geonode.people.models import Contact
+from geonode.upload.models import Upload
 # from geonode.maps.utils import *
 # from geonode.maps.models import *
 from geonode.utils import json_response
@@ -501,6 +503,7 @@ def final_step(upload_session, user):
         sld = f.read()
         f.close()
     else:
+        from geonode.gs_helpers import get_sld_for
         sld = get_sld_for(publishing)
 
     if sld is not None:
@@ -575,8 +578,8 @@ def final_step(upload_session, user):
     permissions = upload_session.permissions
     _log('Setting default permissions for [%s]', name)
     if permissions is not None:
-        from geonode.maps.views import set_layer_permissions
-        set_layer_permissions(saved_layer, permissions)
+        from geonode.layers.utils import layer_set_permissions
+        layer_set_permissions(saved_layer, permissions)
 
     _log('Verifying the layer [%s] was created correctly' % name)
 
@@ -586,7 +589,7 @@ def final_step(upload_session, user):
     try:
         Layer.objects.get(name=name)
     except Layer.DoesNotExist, e:
-        msg = ('There was a problem saving the layer %s to GeoNetwork/Django. Error is: %s' % (layer, str(e)))
+        msg = ('There was a problem saving the layer %s to GeoNetwork/Django. Error is: %s' % (name, str(e)))
         logger.exception(msg)
         logger.debug('Attempting to clean up after failed save for layer [%s]', name)
         # Since the layer creation was not successful, we need to clean up

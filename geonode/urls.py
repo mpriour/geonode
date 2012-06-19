@@ -32,7 +32,8 @@ urlpatterns = patterns('',
 
     # Data views
     (r'^data/', include('geonode.layers.urls')),
-    
+    (r'^upload/', include('geonode.upload.urls')),
+
     # Map views
     (r'^maps/', include('geonode.maps.urls')),
 

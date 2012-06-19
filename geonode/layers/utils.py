@@ -26,6 +26,7 @@ from geonode.security.models import AUTHENTICATED_USERS, ANONYMOUS_USERS
 import geoserver
 from geoserver.catalog import FailedRequestError
 from geoserver.resource import FeatureType, Coverage
+from zipfile import ZipFile
 
 logger = logging.getLogger('geonode.layers.utils')
 

@@ -120,6 +120,7 @@ INSTALLED_APPS = (
 
     # GeoNode internal apps
     'geonode.maps',
+    'geonode.upload',
     'geonode.layers',
     'geonode.people',
     'geonode.proxy',
@@ -143,7 +144,11 @@ LOGGING = {
             "class": "django.utils.log.AdminEmailHandler",
         },
     },
-    "loggers": {
+    "loggers": {        
+        "django": {
+            "handlers": ["console"],
+            "level": "DEBUG",
+        },
         "django.request": {
             "handlers": ["mail_admins"],
             "level": "ERROR",
@@ -153,6 +158,7 @@ LOGGING = {
             "handlers": ["console"],
             "level": "WARNING",
         },
+
         "gsconfig.catalog": {
             "handlers": ["console"],
             "level": "WARNING",
