@@ -21,17 +21,14 @@ import net.sf.json.JSONSerializer;
 
 import org.apache.commons.codec.binary.Base64;
 import org.geonode.security.LayersGrantedAuthority.LayerMode;
-import org.geoserver.platform.GeoServerExtensions;
+import org.geoserver.security.impl.GeoServerRole;
 import org.geotools.util.logging.Logging;
-import org.springframework.beans.BeansException;
 import org.springframework.context.ApplicationContext;
-import org.springframework.context.ApplicationContextAware;
+import org.springframework.security.authentication.AnonymousAuthenticationToken;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.authority.GrantedAuthorityImpl;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.util.Assert;
 
 /**
@@ -173,13 +170,14 @@ public class DefaultSecurityClient implements GeoNodeSecurityClient {
             authorities.add(new LayersGrantedAuthority(rwLayers, LayerMode.READ_WRITE));
         }
         if (json.getBoolean("is_superuser")) {
-            authorities.add(new GrantedAuthorityImpl(GeoNodeDataAccessManager.ADMIN_ROLE));
+            authorities.add(GeoServerRole.ADMIN_ROLE);
+            authorities.add(GeoNodeDataAccessManager.getAdminRole());
         }
 
         final Authentication authentication;
 
         if (json.getBoolean("is_anonymous")) {
-            authorities.add(new GrantedAuthorityImpl("ROLE_ANONYMOUS"));
+            authorities.add(GeoServerRole.ANONYMOUS_ROLE);
             String key = "geonode";
             Object principal = "anonymous";
 
@@ -189,9 +187,9 @@ public class DefaultSecurityClient implements GeoNodeSecurityClient {
             if (json.containsKey("name")) {
                 userName = json.getString("name");
             }
-
-            authentication = new UsernamePasswordAuthenticationToken(userName, credentials,
-                    authorities);
+            authorities.add(GeoServerRole.AUTHENTICATED_ROLE);
+            authentication = new UsernamePasswordAuthenticationToken(
+                userName, credentials, authorities);
         }
         return authentication;
     }
