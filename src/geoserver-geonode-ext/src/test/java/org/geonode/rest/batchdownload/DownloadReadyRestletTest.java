@@ -117,7 +117,6 @@ public class DownloadReadyRestletTest extends GeoNodeTestSupport {
     }
 
     public void testCoverageContents() throws Exception {
-
         final Long processId = issueProcessAndWaitForTermination();
 
         final String request = RESTLET_PATH + "/" + processId.longValue();

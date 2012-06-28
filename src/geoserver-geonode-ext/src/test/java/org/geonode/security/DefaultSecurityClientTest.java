@@ -97,7 +97,7 @@ public class DefaultSecurityClientTest extends GeoServerSecurityTestSupport {
 
         List<GrantedAuthority> authorities = new ArrayList<GrantedAuthority>();
         authorities.addAll(authentication.getAuthorities());
-        assertEquals(3, authorities.size());
+        assertEquals(5, authorities.size());
         assertTrue(authorities.get(0) instanceof LayersGrantedAuthority);
         assertEquals(LayerMode.READ_ONLY, ((LayersGrantedAuthority) authorities.get(0)).getAccessMode());
         assertEquals(Collections.singletonList("layer3"),
@@ -109,7 +109,7 @@ public class DefaultSecurityClientTest extends GeoServerSecurityTestSupport {
                 ((LayersGrantedAuthority) authorities.get(1)).getLayerNames());
 
         assertTrue(authorities.get(2) instanceof GrantedAuthority);
-        assertEquals(GeoNodeDataAccessManager.getAdminRole(), authorities.get(2).getAuthority());
+        assertTrue(authorities.contains(GeoNodeDataAccessManager.getAdminRole()));
     }
 
     public void testAuthenticateUserPassword() throws Exception {
@@ -135,7 +135,7 @@ public class DefaultSecurityClientTest extends GeoServerSecurityTestSupport {
 
         List<GrantedAuthority> authorities = new ArrayList<GrantedAuthority>();
         authorities.addAll(authentication.getAuthorities());
-        assertEquals(2, authorities.size());
+        assertEquals(3, authorities.size());
         assertTrue(authorities.get(0) instanceof LayersGrantedAuthority);
         assertEquals(LayerMode.READ_ONLY, ((LayersGrantedAuthority) authorities.get(0)).getAccessMode());
         assertEquals(Arrays.asList("layer2", "layer3"),
