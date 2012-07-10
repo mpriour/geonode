@@ -42,8 +42,8 @@
       <version>${geoserver.version}</version>
     </dependency>
     <dependency>
-      <groupId>org.geoserver.community</groupId>
-      <artifactId>printing</artifactId>
+      <groupId>org.opengeo.geoserver</groupId>
+      <artifactId>printng</artifactId>
       <version>${geoserver.version}</version>
       <exclusions>
         <exclusion>
