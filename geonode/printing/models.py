@@ -6,6 +6,7 @@ class PrintTemplate(models.Model):
 
     title = models.CharField(_('Title'), max_length=30)
     contents = models.TextField(_('Contents'))
+    url = models.URLField(_('Url'))
 
     def __unicode__(self):
         return self.title
