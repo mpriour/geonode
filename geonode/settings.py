@@ -264,22 +264,22 @@ NOSE_ARGS = [
 
 SITENAME = "GeoNode"
 
-SITEURL = "http://localhost:8000/"
+SITEURL = "http://192.168.56.10:8000/"
 
 # GeoServer information
 
 # The FULLY QUALIFIED url to the GeoServer instance for this GeoNode.
-GEOSERVER_BASE_URL = "http://localhost:8001/geoserver/"
+GEOSERVER_BASE_URL = "http://192.168.56.10:8001/geoserver/"
 
 # The username and password for a user that can add and
 # edit layer details on GeoServer
 GEOSERVER_CREDENTIALS = "geoserver_admin", SECRET_KEY
 
-
+GEOSERVER_PRINT_URL = "".join([GEOSERVER_BASE_URL,"printng/render.pdf"])
 # GeoNetwork information
 
 # The FULLY QUALIFIED url to the GeoNetwork instance for this GeoNode
-GEONETWORK_BASE_URL = "http://localhost:8001/geonetwork/"
+GEONETWORK_BASE_URL = "http://192.168.56.10:8001/geonetwork/"
 
 # The username and password for a user with write access to GeoNetwork
 GEONETWORK_CREDENTIALS = "admin", "admin"
