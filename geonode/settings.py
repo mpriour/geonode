@@ -277,7 +277,7 @@ GEOSERVER_BASE_URL = "http://localhost:8001/geoserver/"
 # edit layer details on GeoServer
 GEOSERVER_CREDENTIALS = "geoserver_admin", SECRET_KEY
 
-GEOSERVER_PRINT_URL = "".join([GEOSERVER_BASE_URL,"printng/render.pdf"])
+GEOSERVER_PRINT_URL = "".join([GEOSERVER_BASE_URL, "rest/printng/render.pdf"])
 # GeoNetwork information
 
 # CSW settings
