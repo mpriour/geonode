@@ -1,0 +1,79 @@
+2012-07-20 14:09:43,885 WARN [config.CustomEditorConfigurer] - Passing PropertyEditor instances into CustomEditorConfigurer is deprecated: use PropertyEditorRegistrars or PropertyEditor class names instead. Offending key [org.geotools.util.Version; offending editor instance: org.geoserver.platform.util.VersionPropertyEditor@7f188439
+2012-07-20 14:09:44,208 ERROR [geoserver.global] - 
+----------------------------------
+- GEOSERVER_DATA_DIR: /home/dwins/Projects/opengeo/geonode/src/geoserver-geonode-ext/../../gs-data
+----------------------------------
+2012-07-20 14:09:44,380 INFO [org.geoserver] - Loaded style 'point'
+2012-07-20 14:09:44,381 INFO [org.geoserver] - Loaded style 'line'
+2012-07-20 14:09:44,381 INFO [org.geoserver] - Loaded style 'polygon'
+2012-07-20 14:09:44,382 INFO [org.geoserver] - Loaded style 'raster'
+2012-07-20 14:09:44,382 WARN [org.geoserver] - No default workspace was found.
+2012-07-20 14:09:44,388 INFO [org.geoserver] - Loaded workspace 'it.geosolutions'
+2012-07-20 14:09:44,406 INFO [org.geoserver] - Loaded workspace 'topp'
+2012-07-20 14:09:44,660 INFO [org.geoserver] - Loaded service 'wms', enabled
+2012-07-20 14:09:44,706 INFO [org.geoserver] - Loaded service 'wfs', enabled
+2012-07-20 14:09:44,736 INFO [org.geoserver] - Loaded service 'wcs', enabled
+2012-07-20 14:09:44,775 INFO [storage.DefaultStorageFinder] - *****************************************************************************************************************
+2012-07-20 14:09:44,776 INFO [storage.DefaultStorageFinder] - *** Found Java environment variable GEOSERVER_DATA_DIR set to ../../gs-data/, using it as the default prefix. ***
+2012-07-20 14:09:44,776 INFO [storage.DefaultStorageFinder] - *****************************************************************************************************************
+2012-07-20 14:09:44,776 INFO [config.XMLConfiguration] - Will look for geowebcache.xml in '../../gs-data/gwc'
+2012-07-20 14:09:45,322 INFO [gwc.config] - Initializing GeoServer specific GWC configuration from gwc-gs.xml
+2012-07-20 14:09:45,394 INFO [ows.OWSHandlerMapping] - Mapped URL path [/ows/**] onto handler 'dispatcher'
+2012-07-20 14:09:45,395 INFO [ows.OWSHandlerMapping] - Mapped URL path [/ows] onto handler 'dispatcher'
+2012-07-20 14:09:45,431 INFO [org.geoserver] - GeoServer configuration lock is enabled
+2012-07-20 14:09:46,415 INFO [jdbc.JDBCMBWrapper] - MetaStore database is version 120
+2012-07-20 14:09:46,528 INFO [gwc.layer] - Initializing GWC configuration based on GeoServer's Catalog
+2012-07-20 14:09:46,529 INFO [gwc.layer] - GeoServer TileLayer store base directory is: /home/dwins/Projects/opengeo/geonode/src/geoserver-geonode-ext/../../gs-data/gwc-layers
+2012-07-20 14:09:46,530 INFO [gwc.layer] - Loading tile layers from /home/dwins/Projects/opengeo/geonode/src/geoserver-geonode-ext/../../gs-data/gwc-layers
+2012-07-20 14:09:46,545 INFO [gwc.layer] - GWC configuration based on GeoServer's Catalog loaded successfuly
+2012-07-20 14:09:46,545 INFO [layer.TileLayerDispatcher] - Configuration GeoServer Catalog Configuration contained no layers.
+2012-07-20 14:09:46,546 WARN [config.XMLConfiguration] - Found no configuration file in config directory, will create one at '/home/dwins/Projects/opengeo/geonode/src/geoserver-geonode-ext/../../gs-data/gwc/geowebcache.xml' from template jar:file:/home/dwins/.m2/repository/org/geowebcache/gwc-core/1.3-RC3/gwc-core-1.3-RC3.jar!/geowebcache_empty.xml
+2012-07-20 14:09:46,633 INFO [config.XMLConfiguration] - Configuration file validated fine.
+2012-07-20 14:09:46,642 INFO [config.XMLConfiguration] - Initializing GridSets from /home/dwins/Projects/opengeo/geonode/src/geoserver-geonode-ext/../../gs-data/gwc
+2012-07-20 14:09:46,642 INFO [config.XMLConfiguration] - Initializing layers from /home/dwins/Projects/opengeo/geonode/src/geoserver-geonode-ext/../../gs-data/gwc
+2012-07-20 14:09:46,642 INFO [layer.TileLayerDispatcher] - Configuration /home/dwins/Projects/opengeo/geonode/src/geoserver-geonode-ext/../../gs-data/gwc contained no layers.
+2012-07-20 14:09:46,748 INFO [storage.EntityStoreBuilder] - Neither disk quota page store' cache memory percent nor cache size was provided. Defaulting to 25% Heap Size
+2012-07-20 14:09:47,395 INFO [storage.BDBQuotaStore] - Berkeley DB JE Disk Quota page store configured at /home/dwins/Projects/opengeo/geonode/src/geoserver-geonode-ext/../../gs-data/gwc/diskquota_page_store
+2012-07-20 14:09:47,397 INFO [storage.BDBQuotaStore] - Quota Store initialized. Global quota: 0.0 B
+2012-07-20 14:09:47,407 INFO [diskquota.ConfigLoader] - DiskQuota configuration not found: /home/dwins/Projects/opengeo/geonode/src/geoserver-geonode-ext/../../gs-data/gwc/geowebcache-diskquota.xml
+2012-07-20 14:09:47,411 INFO [diskquota.DiskQuotaMonitor] - Setting up disk quota periodic enforcement task
+2012-07-20 14:09:47,411 INFO [diskquota.DiskQuotaMonitor] - 0 layers configured with their own quotas. 
+2012-07-20 14:09:47,412 INFO [diskquota.DiskQuotaMonitor] - 0 layers attached to global quota 500.0 MB
+2012-07-20 14:09:47,428 INFO [diskquota.DiskQuotaMonitor] - Disk quota periodic enforcement task set up every 10 SECONDS
+2012-07-20 14:09:47,529 INFO [ows.OWSHandlerMapping] - Mapped URL path [/wms/*] onto handler 'dispatcher'
+2012-07-20 14:09:47,529 INFO [ows.OWSHandlerMapping] - Mapped URL path [/wms] onto handler 'dispatcher'
+2012-07-20 14:09:47,621 INFO [ows.OWSHandlerMapping] - Mapped URL path [/kml] onto handler 'dispatcher'
+2012-07-20 14:09:47,621 INFO [ows.OWSHandlerMapping] - Mapped URL path [/kml/*] onto handler 'dispatcher'
+2012-07-20 14:09:47,623 INFO [ows.OWSHandlerMapping] - Mapped URL path [/animate] onto handler 'dispatcher'
+2012-07-20 14:09:47,624 INFO [ows.OWSHandlerMapping] - Mapped URL path [/animate/*] onto handler 'dispatcher'
+2012-07-20 14:09:47,858 INFO [ows.OWSHandlerMapping] - Mapped URL path [/wfs/*] onto handler 'dispatcher'
+2012-07-20 14:09:47,858 INFO [ows.OWSHandlerMapping] - Mapped URL path [/TestWfsPost] onto handler 'wfsTestServlet'
+2012-07-20 14:09:47,859 INFO [ows.OWSHandlerMapping] - Mapped URL path [/wfs] onto handler 'dispatcher'
+2012-07-20 14:09:54,223 INFO [ows.OWSHandlerMapping] - Mapped URL path [/wcs] onto handler 'dispatcher'
+2012-07-20 14:09:54,223 INFO [ows.OWSHandlerMapping] - Mapped URL path [/wcs/**] onto handler 'dispatcher'
+2012-07-20 14:09:54,576 INFO [ows.OWSHandlerMapping] - Mapped URL path [/gwc/service/**] onto handler 'dispatcher'
+2012-07-20 14:09:54,610 INFO [geowebcache.GeoWebCacheDispatcher] - Invoked setServletPrefix(gwc)
+2012-07-20 14:09:54,619 INFO [georss.GeoRSSPoller] - Initializing GeoRSS poller in a background job...
+2012-07-20 14:09:54,621 INFO [georss.GeoRSSPoller] - No enabled GeoRSS feeds found, poller will not run.
+2012-07-20 14:09:54,709 INFO [rest.RESTDispatcher] - Created RESTDispatcher with 11 paths
+2012-07-20 14:09:54,728 INFO [wms.WMSService] - Will NOT recombine tiles for non-tiling clients.
+2012-07-20 14:09:54,728 INFO [wms.WMSService] - Will proxy requests to backend that are not getmap or getcapabilities.
+2012-07-20 14:09:55,089 INFO [geoserver.security] - Start security migration
+2012-07-20 14:09:55,829 WARN [geoserver.security] - Strong cryptograhpy is NOT available
+Download and install of policy files recommended
+from http://www.oracle.com/technetwork/java/javase/downloads/jce-6-download-429243.html
+2012-07-20 14:09:56,136 INFO [geoserver.security] - Start encrypting configuration passwords using pbePasswordEncoder
+2012-07-20 14:09:56,192 INFO [geoserver.security] - End encrypting configuration passwords
+2012-07-20 14:09:56,356 INFO [security.xml] - Successful lock: /home/dwins/Projects/opengeo/geonode/gs-data/security/usergroup/default/users.xml.lock
+2012-07-20 14:09:56,403 INFO [security.xml] - Successful lock: /home/dwins/Projects/opengeo/geonode/gs-data/security/role/default/roles.xml.lock
+2012-07-20 14:09:56,406 INFO [geoserver.security] - Start storing roles for service named default
+2012-07-20 14:09:56,427 INFO [geoserver.security] - Storing roles successful for service named default
+2012-07-20 14:09:56,428 INFO [geoserver.security] - Start reloading roles for service named default
+2012-07-20 14:09:56,445 INFO [geoserver.security] - Reloading roles successful for service named default
+2012-07-20 14:09:56,446 INFO [geoserver.security] - Adjusted last modified for file: /home/dwins/Projects/opengeo/geonode/gs-data/security/role/default/roles.xml
+2012-07-20 14:09:56,446 INFO [geoserver.security] - Start storing user/grous for service named default
+2012-07-20 14:09:56,449 INFO [geoserver.security] - Storing user/grous successful for service named default
+2012-07-20 14:09:56,449 INFO [geoserver.security] - Start reloading user/grous for service named default
+2012-07-20 14:09:56,458 INFO [geoserver.security] - Reloading user/groups successful for service named default
+2012-07-20 14:09:56,459 INFO [geoserver.security] - Adjusted last modified for file: /home/dwins/Projects/opengeo/geonode/gs-data/security/usergroup/default/users.xml
+2012-07-20 14:09:56,459 INFO [geoserver.security] - End security migration
