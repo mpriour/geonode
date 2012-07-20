@@ -156,22 +156,6 @@ def grab(src, dest):
     urlretrieve(str(src), str(dest))
 
 @task
-def setup_gs_data(options):
-    """Fetch a data directory to use with GeoServer for testing."""
-    src_url = str(options.config.parser.get('geoserver', 'gs_data_url'))
-    shared = path("./shared")
-    if not shared.exists():
-        shared.mkdir()
-
-    dst_url = shared / "geonode-geoserver-data.zip"
-    grab(src_url, dst_url)
-
-    if getattr(options, 'clean', False): path(gs_data).rmtree()
-    if not path(gs_data).exists(): unzip_file(dst_url, gs_data)
-
-
-@task
-@needs(['setup_gs_data'])
 def setup_geoserver(options):
     """Prepare a testing instance of GeoServer."""
     with pushd('src/geoserver-geonode-ext'):
