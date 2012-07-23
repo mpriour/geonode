@@ -13,35 +13,29 @@ or return response objects.
 State is stored in a UploaderSession object stored in the user's session.
 This needs to be made more stateful by adding a model.
 """
+from geonode.maps.gs_helpers import get_sld_for
+from geonode.maps.utils import get_valid_layer_name
+from geonode.maps.utils import layer_type
+from geonode.maps.models import Layer
+from geonode.maps.models import Contact
+from geonode.maps.models import GeoNodeException
+from geonode.maps.utils import get_default_user
+from geonode.upload.models import Upload
+from geonode.upload.utils import create_geoserver_db_featurestore
+
+import geoserver
+from geoserver.resource import Coverage
+from geoserver.resource import FeatureType
+from gsuploader.uploader import RequestFailed
 
 from django.conf import settings
-from django.utils.html import escape
 from django.contrib.auth.models import User
-from django.core.urlresolvers import reverse
-import uuid
-import logging
-import re
+
 import shutil
 import json
 import os.path
-from zipfile import ZipFile
-
-import geoserver
-from geoserver.resource import FeatureType
-from geoserver.resource import Coverage
-from geonode import GeoNodeException
-from geonode.layers.utils import get_valid_layer_name
-from geonode.layers.utils import layer_type
-from geonode.layers.models import Layer
-from geonode.people.models import Contact
-from geonode.upload.models import Upload
-# from geonode.maps.utils import *
-# from geonode.maps.models import *
-from geonode.utils import json_response
-from geonode.people.utils import get_default_user
-
-from gsuploader.uploader import RequestFailed
-
+import logging
+import uuid
 
 logger = logging.getLogger(__name__)
 
@@ -84,7 +78,10 @@ class UploaderSession(object):
     import_target = None
 
     # track the most recently completed upload step
-    _completed_step = None
+    completed_step = None
+    
+    # the upload type - see the _pages dict in views
+    upload_type = None
 
     def set_target(self, target):
         self.import_target = {
@@ -145,53 +142,6 @@ def _log(msg, *args):
     logger.info(msg, *args)
 
 
-def rename_and_prepare(base_file):
-    """ensure the file(s) have a proper name @hack this should be done
-    in a nicer way, but needs fixing now To fix longer term: if
-    geonode computes a name, the uploader should respect it As it
-    is/was, geonode will compute a name based on the zipfile but the
-    importer will use names as it unpacks the zipfile. Renaming all
-    the various pieces seems a burden on the client
-    """
-    name, ext = os.path.splitext(os.path.basename(base_file))
-    xml_unsafe = re.compile(r"(^[^a-zA-Z\._]+)|([^a-zA-Z\._0-9]+)")
-    dirname = os.path.dirname(base_file)
-    if ext == ".zip":
-        zf = ZipFile(base_file, 'r')
-        rename = False
-        main_file = None
-        for f in zf.namelist():
-            name, ext = os.path.splitext(os.path.basename(f))
-            if xml_unsafe.search(name):
-                rename = True
-            # @todo other files - need to unify extension handling somewhere
-            if ext.lower() == '.shp':
-                main_file = f
-            elif ext.lower() == '.tif':
-                main_file = f
-            elif ext.lower() == '.csv':
-                main_file = f
-        if not main_file: raise Exception(
-                'Could not locate a shapefile or tif file')
-        if rename:
-            # dang, have to unpack and rename
-            zf.extractall(dirname)
-        zf.close()
-        if rename:
-            os.unlink(base_file)
-            base_file = os.path.join(dirname, main_file)
-
-    for f in os.listdir(dirname):
-        safe = xml_unsafe.sub("_", f)
-        if safe != f:
-            os.rename(os.path.join(dirname, f), os.path.join(dirname, safe))
-
-    return os.path.join(
-        dirname,
-        xml_unsafe.sub('_', os.path.basename(base_file))
-        )
-
-
 def save_step(user, layer, base_file, overwrite=True):
 
     _log('Uploading layer: [%s], base file [%s]', layer, base_file)
@@ -238,7 +188,7 @@ def save_step(user, layer, base_file, overwrite=True):
                     existing_type = resource.resource_type
                     if existing_type != the_layer_type:
                         msg =  ('Type of uploaded file %s (%s) does not match type '
-                            'of existing resource type %s' % (layer_name, the_layer_type, existing_type))
+                            'of existing resource type %s' % (name, the_layer_type, existing_type))
                         _log(msg)
                         raise GeoNodeException(msg)
 
@@ -275,50 +225,6 @@ def save_step(user, layer, base_file, overwrite=True):
     return import_session
 
 
-def _create_db_featurestore():
-    """Override the imported method from utils that does too much"""
-    cat = Layer.objects.gs_catalog
-    # get or create datastore
-    try:
-        ds = cat.get_store(settings.DB_DATASTORE_NAME)
-
-    except FailedRequestError:
-        logging.info(
-            'Creating target datastore %s' % settings.DB_DATASTORE_NAME)
-        ds = cat.create_datastore(settings.DB_DATASTORE_NAME)
-        ds.connection_parameters.update(
-            host=settings.DB_DATASTORE_HOST,
-            port=settings.DB_DATASTORE_PORT,
-            database=settings.DB_DATASTORE_DATABASE,
-            user=settings.DB_DATASTORE_USER,
-            passwd=settings.DB_DATASTORE_PASSWORD,
-            dbtype=settings.DB_DATASTORE_TYPE)
-        cat.save(ds)
-        ds = cat.get_store(settings.DB_DATASTORE_NAME)
-
-    return ds
-
-
-def _do_upload(upload_session):
-    if upload_session.update_mode:
-        try:
-            run_import(request)
-            return HttpResponse(json.dumps({
-            "success": True,
-            "redirect_to": layer.get_absolute_url() + "?describe"}))
-        except Exception, e:
-            logging.exception("Unexpected error during upload.")
-            return json_response(
-                error="Unexpected error during upload: " + escape(str(e))
-                )
-    else:
-        # only feature types have attributes
-        if hasattr(upload_session.import_session.tasks[0].items[0].resource, "attributes"):
-            return json_response(reverse('data_upload', args=['time']))
-        else:
-            return HttpResponse("Can't handle this data", status=500)
-
-
 def run_import(upload_session, async):
     """Run the import, possibly asynchronously.
 
@@ -328,7 +234,7 @@ def run_import(upload_session, async):
     # if a target datastore is configured, ensure the datastore exists
     # in geoserver and set the uploader target appropriately
     if settings.DB_DATASTORE:
-        target = _create_db_featurestore()
+        target = create_geoserver_db_featurestore()
         _log('setting target datastore %s %s',
              target.name, target.workspace.name
             )
@@ -338,8 +244,8 @@ def run_import(upload_session, async):
         target = import_session.tasks[0].target
 
     if upload_session.update_mode:
-        _log('setting updateMode to %s', update_mode)
-        import_session.tasks[0].set_update_mode(update_mode)
+        _log('setting updateMode to %s', upload_session.update_mode)
+        import_session.tasks[0].set_update_mode(upload_session.update_mode)
 
     _log('running import session')
     # run async if using a database
@@ -503,7 +409,6 @@ def final_step(upload_session, user):
         sld = f.read()
         f.close()
     else:
-        from geonode.gs_helpers import get_sld_for
         sld = get_sld_for(publishing)
 
     if sld is not None:
@@ -578,8 +483,8 @@ def final_step(upload_session, user):
     permissions = upload_session.permissions
     _log('Setting default permissions for [%s]', name)
     if permissions is not None:
-        from geonode.layers.utils import layer_set_permissions
-        layer_set_permissions(saved_layer, permissions)
+        from geonode.maps.views import set_layer_permissions
+        set_layer_permissions(saved_layer, permissions)
 
     _log('Verifying the layer [%s] was created correctly' % name)
 

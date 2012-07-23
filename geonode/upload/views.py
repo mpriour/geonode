@@ -13,24 +13,29 @@ or return response objects.
 State is stored in a UploaderSession object stored in the user's session.
 This needs to be made more stateful by adding a model.
 """
-from geonode.maps.utils import *
-from geonode.maps.models import *
-from geonode.layers.forms import NewLayerUploadForm
-from geonode.utils import json_response
-from geonode.upload.upload import *
+from geonode.maps.forms import NewLayerUploadForm
+from geonode.maps.views import json_response
+from geonode.upload.forms import TimeForm
+from geonode.upload.models import Upload
+from geonode.upload import upload
+from geonode.upload import utils
 
-from django import forms
 from django.conf import settings
-from django.http import HttpResponse, HttpResponseRedirect
+from django.core.exceptions import PermissionDenied
+from django.http import HttpResponse
+from django.http import HttpResponseRedirect
 from django.utils.html import escape
 from django.core.urlresolvers import reverse
+from django.shortcuts import get_object_or_404
 from django.shortcuts import render_to_response
 from django.template import RequestContext
 from django.contrib.auth.decorators import login_required
 
 import json
 import os
+import logging
 
+logger = logging.getLogger(__name__)
 
 _SESSION_KEY = 'geonode_upload_session'
 _ALLOW_TIME_STEP = hasattr(settings, "UPLOADER_SHOW_TIME_STEP") and settings.UPLOADER_SHOW_TIME_STEP or False
@@ -47,45 +52,32 @@ def _progress_redirect(step, endpoint):
         progress = endpoint
     ))
 
-def _redirect(step):
-    return json_response(redirect_to=reverse('data_upload', args=[step]))
+
+def _error_response(req, exception=None, errors=None, force_ajax=False):
+    if exception:
+        logger.exception('Unexpected error in upload step')
+    if req.is_ajax() or force_ajax:
+        content_type = 'text/html' if not req.is_ajax() else None
+        return json_response('Unexpected error: %s', exception=exception, errors=errors,
+                             content_type=content_type)
+    return render_to_response('upload/upload_error.html', RequestContext(req,{
+        'error_msg' : 'Unexpected error : %s,' % exception
+    }))
+
+#def _redirect(req, step):
+#    content_type = 'text/html' if req.is_ajax() else None
+#    return json_response(redirect_to=reverse('data_upload', args=[step]),
+#        content_type=content_type)
 
 
-class TimeForm(forms.Form):
-    presentation_strategy = forms.CharField(required=False)
-    srs = forms.CharField(required=False)
-    precision_value = forms.IntegerField(required=False)
-    precision_step = forms.ChoiceField(required=False, choices=[
-        ('years',)*2,
-        ('months',)*2,
-        ('days',)*2,
-        ('hours',)*2,
-        ('minutes',)*2,
-        ('seconds',)*2
-    ])
-
-    def __init__(self, *args, **kwargs):
-        # have to remove these from kwargs or Form gets mad
-        time_names = kwargs.pop('time_names', None)
-        text_names = kwargs.pop('text_names', None)
-        year_names = kwargs.pop('year_names', None)
-        super(TimeForm, self).__init__(*args, **kwargs)
-        self._build_choice('time_attribute', time_names)
-        self._build_choice('end_time_attribute', time_names)
-        self._build_choice('text_attribute', text_names)
-        self._build_choice('end_text_attribute', text_names)
-        if text_names:
-            self.fields['text_attribute_format'] = forms.CharField(required=False)
-        self._build_choice('year_attribute', year_names)
-        self._build_choice('end_year_attribute', year_names)
-
-    def _build_choice(self, att, names):
-        if names:
-            choices = [('', '<None>')] + [(a, a) for a in names]
-            self.fields[att] = forms.ChoiceField(
-                choices=choices, required=False)
-    # @todo implement clean
-
+def _next_step_response(req, upload_session, force_ajax):
+    next = get_next_step(upload_session)
+    if req.is_ajax() or force_ajax:
+        content_type = 'text/html' if not req.is_ajax() else None
+        return json_response(redirect_to=reverse('data_upload', args=[next]),
+                             content_type=content_type)
+    return HttpResponseRedirect(reverse('data_upload', args=[next]))
+    
 
 def _create_time_form(import_session, form_data):
     feature_type = import_session.tasks[0].items[0].resource
@@ -111,7 +103,8 @@ def save_step_view(req, session):
             RequestContext(req, {
             'storage_remaining': "%d MB" % mb,
             'enough_storage': mb > 64,
-            'async_upload' : _ASYNC_UPLOAD
+            'async_upload' : _ASYNC_UPLOAD,
+            'incomplete' : Upload.objects.get_incomplete_uploads(req.user)
         }))
         
     assert session is None
@@ -120,22 +113,25 @@ def save_step_view(req, session):
     tempdir = None
     if form.is_valid():
         tempdir, base_file = form.write_files()
-        base_file = rename_and_prepare(base_file)
-        name, __ = os.path.splitext(os.path.basename(base_file))
-        import_session = save_step(req.user, name, base_file, overwrite=False)
-        upload_session = req.session[_SESSION_KEY] = UploaderSession(
+        base_file = utils.rename_and_prepare(base_file)
+        name, ext = os.path.splitext(os.path.basename(base_file))
+        import_session = upload.save_step(req.user, name, base_file, overwrite=False)
+        sld = utils.find_sld(base_file)
+        logger.info('provided sld is %s' % sld)
+        upload_type = utils.get_upload_type(base_file)
+        upload_session = req.session[_SESSION_KEY] = upload.UploaderSession(
             tempdir=tempdir,
             base_file=base_file,
             name=name,
             import_session=import_session,
             layer_abstract=form.cleaned_data["abstract"],
             layer_title=form.cleaned_data["layer_title"],
-            permissions=form.cleaned_data["permissions"]
+            permissions=form.cleaned_data["permissions"],
+            import_sld_file = sld,
+            upload_type = upload_type
         )
-        if _ALLOW_TIME_STEP:
-            return _redirect('time')
         
-        return run_response(upload_session, True)
+        return _next_step_response(req, upload_session, force_ajax=True)
     else:
         errors = []
         for e in form.errors.values():
@@ -148,7 +144,7 @@ def data_upload_progress(req, upload_session):
     and is an inefficient way of getting this information"""
     import_session = upload_session.import_session
     progress = import_session.tasks[0].items[0].get_progress()
-    return HttpResponse(json.dumps(progress), "application/json")
+    return json_response(progress)
 
 
 def time_step_context(import_session, form_data):
@@ -172,7 +168,20 @@ def time_step_context(import_session, form_data):
 
 
 def time_step_view(request, upload_session):
+    import_session = upload_session.import_session
+
     if request.method == 'GET':
+        # check for invalid attribute names
+        feature_type = import_session.tasks[0].items[0].resource
+        if feature_type.resource_type == 'featureType':
+            invalid = filter(lambda a: a.name.find(' ') >= 0, feature_type.attributes)
+            if invalid:
+                att_list = "<pre>%s</pre>" % '. '.join([a.name for a in invalid])
+                msg = "Attributes with spaces are not supported : %s" % att_list
+                return render_to_response('upload/upload_error.html', RequestContext(request,{
+                    'error_msg' : msg
+                }))
+        
         return render_to_response('upload/layer_upload_time.html',
             RequestContext(
                 request,
@@ -182,8 +191,6 @@ def time_step_view(request, upload_session):
         )
     elif request.method != 'POST':
         raise Exception()
-
-    import_session = upload_session.import_session
 
     form = _create_time_form(import_session, request.POST)
     #@todo validation feedback
@@ -213,7 +220,7 @@ def time_step_view(request, upload_session):
             break
 
     try:
-        time_step(
+        upload.time_step(
             upload_session,
             time_attribute=time_attribute,
             time_transform_type=time_transform_type,
@@ -227,53 +234,60 @@ def time_step_view(request, upload_session):
             srs=cleaned.get('srs', None)
         )
     except Exception, ex:
-        return json_response(exception=ex)
+        return _error_response(request, exception=ex)
 
-    return run_response(upload_session, False)
+    return _next_step_response(request, upload_session)
 
 
-def run_response(upload_session, ext_resp):
-    '''run the upload_session and respond
-    ext_resp: if True, reply using extjs json
-    '''
+def run_response(req, upload_session):
     try:
-        target = run_import(upload_session, _ASYNC_UPLOAD)
+        target = upload.run_import(upload_session, _ASYNC_UPLOAD)
     except Exception, ex:
         return json_response(exception=ex)
 
     upload_session.set_target(target)
 
     if _ASYNC_UPLOAD:
-        return _progress_redirect('final', reverse(
+        next = get_next_step(upload_session)
+        return _progress_redirect(next, reverse(
             'data_upload', args=['progress']
         ))
-    if ext_resp:
-        # in order for ext.js to correctly parse a json response with a
-        # file uploader, we must return a content type of text/html
-        # for more information please see the ext.js document.
-        # http://docs.sencha.com/ext-js/3-4/#!/api/Ext.form.BasicForm-cfg-fileUpload
-
-        return HttpResponse(
-            json.dumps(
-                {'success': True,
-                 'redirect_to': reverse('data_upload', args=['final'])}),
-                 content_type='text/html'
-            )
-
-    return HttpResponseRedirect(reverse('data_upload', args=['final']))
+        
+    return _next_step_response(req, upload_session)
 
 
 def final_step_view(req, upload_session):
-    saved_layer = final_step(upload_session, req.user)
+    saved_layer = upload.final_step(upload_session, req.user)
     return HttpResponseRedirect(saved_layer.get_absolute_url() + "?describe")
 
 
 _steps = {
     'save': save_step_view,
-    'progress': data_upload_progress,
     'time': time_step_view,
-    'final': final_step_view
+    'run' : run_response,
+    'final': final_step_view,
 }
+
+_pages = {
+    'shp' : ('time', 'progress', 'final'),
+}
+
+if not _ALLOW_TIME_STEP:
+    for t, steps in _pages:
+        steps = list(steps)
+        if 'time' in steps:
+            steps.remove('time')
+        _pages[t] = tuple(steps)
+
+def get_next_step(upload_session):
+    assert upload_session.upload_type is not None
+    pages = _pages[upload_session.upload_type]
+    if upload_session.completed_step:
+        next = pages[min(len(pages) - 1,pages.index(upload_session.completed_step))]
+    else:
+        next = pages[0]
+    return next
+
 
 @login_required
 def view(req, step):
@@ -282,9 +296,19 @@ def view(req, step):
     upload_session = None
 
     if step is None:
+        if 'id' in req.GET:
+            # upload recovery
+            upload = get_object_or_404(Upload, import_id=req.GET['id'], user=req.user)
+            session = upload.get_session()
+            if session:
+                req.session[_SESSION_KEY] = session
+                next = get_next_step(session)
+                return HttpResponseRedirect(reverse('data_upload', args=[next]))
+
+        
         step = 'save'
 
-        # @todo should warn user if session is being abandoned!
+        # delete existing session
         if _SESSION_KEY in req.session:
             del req.session[_SESSION_KEY]
 
@@ -296,10 +320,21 @@ def view(req, step):
     try:
         resp = _steps[step](req, upload_session)
         if upload_session:
+            upload_session.completed_step = step
             req.session[_SESSION_KEY] = upload_session
-            Upload.objects.update_from_session(upload_session.import_session)
+            Upload.objects.update_from_session(upload_session)
         return resp
     except Exception, e:
         if upload_session:
+            # @todo probably don't want to do this
             upload_session.cleanup()
-        return json_response('Error in upload step : %s', exception=e)
+        return _error_response(req, exception=e, force_ajax=True) #@todo fix force_ajax
+
+
+@login_required
+def delete(req, id):
+    upload = get_object_or_404(Upload, import_id=id)
+    if req.user != upload.user:
+        raise PermissionDenied()
+    upload.delete()
+    return HttpResponseRedirect(reverse('data_upload'))
