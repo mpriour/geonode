@@ -112,7 +112,6 @@
       <scope>runtime</scope>
     </dependency>
 
->>>>>>> 419576dac091308cc9120d30cd3be74857b10eca
     <dependency>
         <groupId>org.geotools</groupId>
         <artifactId>gt-shapefile</artifactId>
