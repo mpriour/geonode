@@ -71,7 +71,16 @@ def _next_step_response(req, upload_session, force_ajax=False):
     # has no corresponding view served by the 'view' function.
     if next == 'run':
         upload_session.completed_step = next
-        return run_response(req, upload_session)
+        if _ASYNC_UPLOAD:
+            return run_response(req, upload_session)
+        else:
+            try:
+                # on sync we want to run the import and advance to the next step
+                run_import(upload_session)
+                return _next_step_response(req, upload_session,
+                                           force_ajax=force_ajax)
+            except Exception, e:
+                return json_response(exception=e)
     if req.is_ajax() or force_ajax:
         content_type = 'text/html' if not req.is_ajax() else None
         return json_response(redirect_to=reverse('data_upload', args=[next]),
@@ -240,13 +249,17 @@ def time_step_view(request, upload_session):
     return _next_step_response(request, upload_session)
 
 
+def run_import(upload_session):
+    # run_import can raise an exception which callers should handle
+    target = upload.run_import(upload_session, _ASYNC_UPLOAD)
+    upload_session.set_target(target)
+
+
 def run_response(req, upload_session):
     try:
-        target = upload.run_import(upload_session, _ASYNC_UPLOAD)
+        run_import(upload_session)
     except Exception, ex:
         return json_response(exception=ex)
-
-    upload_session.set_target(target)
 
     if _ASYNC_UPLOAD:
         next = get_next_step(upload_session)
