@@ -282,6 +282,7 @@ _steps = {
 # note 'run' is not a "real" step, but handled as a special case
 _pages = {
     'shp' : ('time', 'run', 'final'),
+    'csv' : ('time', 'run', 'final'),
 }
 
 if not _ALLOW_TIME_STEP:
