@@ -293,7 +293,10 @@ if not _ALLOW_TIME_STEP:
 
 def get_next_step(upload_session):
     assert upload_session.upload_type is not None
-    pages = _pages[upload_session.upload_type]
+    try:
+        pages = _pages[upload_session.upload_type]
+    except KeyError, e:
+        raise Exception('Unsupported file type: %s' % e.message)
     if upload_session.completed_step:
         next = pages[min(len(pages) - 1,pages.index(upload_session.completed_step) + 1)]
     else:
