@@ -13,15 +13,15 @@ or return response objects.
 State is stored in a UploaderSession object stored in the user's session.
 This needs to be made more stateful by adding a model.
 """
-from geonode.maps.gs_helpers import get_sld_for
-from geonode.maps.utils import get_valid_layer_name
-from geonode.maps.utils import layer_type
-from geonode.maps.models import Layer
-from geonode.maps.models import Contact
-from geonode.maps.models import GeoNodeException
-from geonode.maps.utils import get_default_user
+from geonode import GeoNodeException
+from geonode.gs_helpers import get_sld_for
+from geonode.layers.utils import get_valid_layer_name
+from geonode.layers.utils import layer_type
+from geonode.layers.models import Layer
+from geonode.people.models import Contact
+from geonode.layers.utils import get_default_user
 from geonode.upload.models import Upload
-from geonode.upload.utils import create_geoserver_db_featurestore
+from geonode.layers.utils import _create_db_featurestore
 
 import geoserver
 from geoserver.resource import Coverage

@@ -23,6 +23,10 @@
       <id>osgeo</id>
       <url>http://download.osgeo.org/webdav/geotools</url>
     </repository>
+    <repository>
+      <id>restlet</id>
+      <url>http://maven.restlet.org/</url>
+    </repository>
   </repositories>
 
   <dependencies>
@@ -32,30 +36,14 @@
       <version>${geoserver.version}</version>
     </dependency>
     <dependency>
-      <groupId>org.geoserver.web</groupId>
-      <artifactId>web-security</artifactId>
-      <version>${geoserver.version}</version>
-    </dependency>
-    <dependency>
       <groupId>org.geoserver.community</groupId>
       <artifactId>printing</artifactId>
       <version>${geoserver.version}</version>
-      <exclusions>
-        <exclusion>
-          <groupId>xerces</groupId>
-          <artifactId>xercesImpl</artifactId>
-        </exclusion>
-      </exclusions>
     </dependency>
     <dependency>
       <groupId>org.geoserver</groupId>
       <artifactId>restconfig</artifactId>
       <version>${geoserver.version}</version>
-    </dependency>
-    <dependency>
-      <groupId>xerces</groupId>
-      <artifactId>xercesImpl</artifactId>
-      <version>2.7.1</version>
     </dependency>
     <dependency>
       <groupId>org.geoserver.extension</groupId>
@@ -94,18 +82,6 @@
     </dependency>
 
     <dependency>
-        <groupId>org.opengeo.geoserver</groupId>
-        <artifactId>importer</artifactId>
-        <version>2.2-RC1</version>
-        <scope>runtime</scope>
-    </dependency>
-
-    <dependency>
-        <groupId>org.opengeo.data.csv</groupId>
-        <artifactId>csv</artifactId>
-        <version>2.2-RC1</version>
-        <scope>runtime</scope>
-    </dependency>
       <groupId>org.opengeo.data.csv</groupId>
       <artifactId>csv</artifactId>
       <version>${geoserver.version}</version>
@@ -149,14 +125,6 @@
       <classifier>tests</classifier>
       <version>${geoserver.version}</version>
     </dependency>
-    <dependency>
-      <groupId>org.geoserver.web</groupId>
-      <artifactId>web-core</artifactId>
-      <scope>test</scope>
-      <classifier>tests</classifier>
-      <version>${geoserver.version}</version>
-    </dependency>
-
     <dependency>
       <groupId>com.mockrunner</groupId>
       <artifactId>mockrunner</artifactId>
@@ -210,8 +178,8 @@
     </dependency>
   </dependencies>
   <properties>
-    <geotools.version>8.0-RC2</geotools.version>
-    <geoserver.version>2.2-RC1</geoserver.version>
+    <geotools.version>8-SNAPSHOT</geotools.version>
+    <geoserver.version>2.2-SNAPSHOT</geoserver.version>
     <jetty.version>6.1.8</jetty.version>
     <maven.test.search.classdir>true</maven.test.search.classdir>
   </properties>
@@ -247,9 +215,7 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-compiler-plugin</artifactId>
-        <version>2.5.1</version>
         <configuration>
-          <encoding>UTF-8</encoding>
           <source>1.5</source>
           <target>1.5</target>
         </configuration>
@@ -258,7 +224,6 @@
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>
-        <version>2.4</version>
         <configuration>
             <argLine>-XX:MaxPermSize=256m</argLine>
         </configuration>
@@ -286,7 +251,7 @@
           <systemProperties>
             <systemProperty>
               <name>GEOSERVER_DATA_DIR</name>
-              <value>../build/gs_data/</value>
+              <value>../../gs-data/</value>
             </systemProperty>
           </systemProperties>
 
@@ -299,27 +264,7 @@
 
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-assembly-plugin</artifactId>
-        <version>2.3</version>
-        <configuration>
-          <descriptors>
-            <descriptor>assembly.xml</descriptor>
-          </descriptors>
-        </configuration>
-        <executions>
-          <execution>
-            <phase>package</phase>
-            <goals>
-              <goal>single</goal>
-            </goals>
-          </execution>
-        </executions>
-      </plugin>
-
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-war-plugin</artifactId>
-        <version>2.2</version>
         <configuration>
           <warName>geoserver</warName> 
           <webappDirectory>${project.build.directory}/geoserver</webappDirectory> -->

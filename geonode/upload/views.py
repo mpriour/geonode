@@ -13,8 +13,8 @@ or return response objects.
 State is stored in a UploaderSession object stored in the user's session.
 This needs to be made more stateful by adding a model.
 """
-from geonode.maps.forms import NewLayerUploadForm
-from geonode.maps.views import json_response
+from geonode.layers.forms import NewLayerUploadForm
+from geonode.utils import json_response
 from geonode.upload.forms import TimeForm
 from geonode.upload.models import Upload
 from geonode.upload import upload
@@ -268,6 +268,7 @@ _steps = {
     'final': final_step_view,
 }
 
+"""
 _pages = {
     'shp' : ('time', 'progress', 'final'),
 }
@@ -278,6 +279,7 @@ if not _ALLOW_TIME_STEP:
         if 'time' in steps:
             steps.remove('time')
         _pages[t] = tuple(steps)
+"""
 
 def get_next_step(upload_session):
     assert upload_session.upload_type is not None
