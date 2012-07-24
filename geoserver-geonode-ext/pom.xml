@@ -23,10 +23,6 @@
       <id>osgeo</id>
       <url>http://download.osgeo.org/webdav/geotools</url>
     </repository>
-    <repository>
-      <id>restlet</id>
-      <url>http://maven.restlet.org/</url>
-    </repository>
   </repositories>
 
   <dependencies>
@@ -36,14 +32,30 @@
       <version>${geoserver.version}</version>
     </dependency>
     <dependency>
+      <groupId>org.geoserver.web</groupId>
+      <artifactId>web-security</artifactId>
+      <version>${geoserver.version}</version>
+    </dependency>
+    <dependency>
       <groupId>org.geoserver.community</groupId>
       <artifactId>printing</artifactId>
       <version>${geoserver.version}</version>
+      <exclusions>
+        <exclusion>
+          <groupId>xerces</groupId>
+          <artifactId>xercesImpl</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
     <dependency>
       <groupId>org.geoserver</groupId>
       <artifactId>restconfig</artifactId>
       <version>${geoserver.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>xerces</groupId>
+      <artifactId>xercesImpl</artifactId>
+      <version>2.7.1</version>
     </dependency>
     <dependency>
       <groupId>org.geoserver.extension</groupId>
@@ -73,20 +85,21 @@
       <artifactId>commons-httpclient</artifactId>
       <version>3.1</version>
     </dependency>
-
+    
     <dependency>
-      <groupId>org.opengeo.geoserver</groupId>
-      <artifactId>importer</artifactId>
-      <version>${geoserver.version}</version>
-      <scope>runtime</scope>
+        <groupId>org.opengeo.geoserver</groupId>
+        <artifactId>importer</artifactId>
+        <version>2.2-SNAPSHOT</version>
+        <scope>runtime</scope>
     </dependency>
 
     <dependency>
-      <groupId>org.opengeo.data.csv</groupId>
-      <artifactId>csv</artifactId>
-      <version>${geoserver.version}</version>
-      <scope>runtime</scope>
+        <groupId>org.opengeo.data.csv</groupId>
+        <artifactId>csv</artifactId>
+        <version>2.2-SNAPSHOT</version>
+        <scope>runtime</scope>
     </dependency>
+
 
     <dependency>
         <groupId>org.geotools</groupId>
@@ -125,6 +138,14 @@
       <classifier>tests</classifier>
       <version>${geoserver.version}</version>
     </dependency>
+    <dependency>
+      <groupId>org.geoserver.web</groupId>
+      <artifactId>web-core</artifactId>
+      <scope>test</scope>
+      <classifier>tests</classifier>
+      <version>${geoserver.version}</version>
+    </dependency>
+
     <dependency>
       <groupId>com.mockrunner</groupId>
       <artifactId>mockrunner</artifactId>
@@ -251,7 +272,7 @@
           <systemProperties>
             <systemProperty>
               <name>GEOSERVER_DATA_DIR</name>
-              <value>../../gs-data/</value>
+              <value>../build/gs_data/</value>
             </systemProperty>
           </systemProperties>
 
@@ -260,6 +281,25 @@
           <!-- configure the container                 -->
           <jettyConfig>jetty.xml</jettyConfig>
         </configuration>
+      </plugin>
+
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-assembly-plugin</artifactId>
+        <version>2.3</version>
+        <configuration>
+          <descriptors>
+            <descriptor>assembly.xml</descriptor>
+          </descriptors>
+        </configuration>
+        <executions>
+          <execution>
+            <phase>package</phase>
+            <goals>
+              <goal>single</goal>
+            </goals>
+          </execution>
+        </executions>
       </plugin>
 
       <plugin>

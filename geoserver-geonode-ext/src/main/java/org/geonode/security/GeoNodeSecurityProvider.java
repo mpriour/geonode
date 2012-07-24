@@ -80,7 +80,7 @@ public class GeoNodeSecurityProvider extends GeoServerSecurityProvider {
             GeoNodeAuthProviderConfig providerConfig = new GeoNodeAuthProviderConfig();
             providerConfig.setName("geonodeAuthProvider");
             providerConfig.setClassName(GeoNodeAuthenticationProvider.class.getCanonicalName());
-            providerConfig.setBaseUrl("http://localhost:8000/");
+            providerConfig.setBaseUrl("http://localhost/");
             manager.saveAuthenticationProvider(providerConfig);
 
             GeoNodeAuthFilterConfig filterConfig = new GeoNodeAuthFilterConfig();

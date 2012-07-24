@@ -549,7 +549,7 @@ def resolve_object(request, model, query, permission=None,
     return obj
 
 
-def json_response(body=None, errors=None, redirect_to=None, exception=None):
+def json_response(body=None, errors=None, redirect_to=None, exception=None, content_type=None):
    """Create a proper JSON response. If body is provided, this is the response.
    If errors is not None, the response is a success/errors json object.
    If redirect_to is not None, the response is a success=True, redirect_to object
