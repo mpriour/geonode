@@ -272,7 +272,7 @@ _pages = {
 }
 
 if not _ALLOW_TIME_STEP:
-    for t, steps in _pages:
+    for t, steps in _pages.items():
         steps = list(steps)
         if 'time' in steps:
             steps.remove('time')
