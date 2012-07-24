@@ -282,6 +282,7 @@ _steps = {
 # note 'run' is not a "real" step, but handled as a special case
 _pages = {
     'shp' : ('time', 'run', 'final'),
+    'tif' : ('time', 'run', 'final'),
     'csv' : ('time', 'run', 'final'),
 }
 
