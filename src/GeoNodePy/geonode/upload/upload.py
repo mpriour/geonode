@@ -21,6 +21,7 @@ from geonode.maps.models import Contact
 from geonode.maps.models import GeoNodeException
 from geonode.maps.utils import get_default_user
 from geonode.upload.models import Upload
+from geonode.upload import signals
 from geonode.upload.utils import create_geoserver_db_featurestore
 
 import geoserver
@@ -30,6 +31,7 @@ from gsuploader.uploader import RequestFailed
 
 from django.conf import settings
 from django.contrib.auth.models import User
+from django.db.models import Max
 
 import shutil
 import json
@@ -198,18 +200,26 @@ def save_step(user, layer, base_file, overwrite=True):
 
     error_msg = None
     try:
+        # importer tracks ids by autoincrement but is prone to corruption
+        # which potentially may reset the id - hopefully prevent this...
+        next_id = Upload.objects.all().aggregate(Max('import_id')).values()[0]
+        next_id = next_id + 1 if next_id else 1
+        # @todo - when importer is ready, remove the next line
+        next_id = None
+
         # @todo settings for use_url or auto detection if geoserver is
         # on same host
-
         import_session = Layer.objects.gs_uploader.upload(
-            base_file, use_url=False)
+            base_file, use_url=False, import_id=next_id)
+            
+        # save record of this whether valid or not - will help w/ debugging
+        Upload.objects.create_from_session(user, import_session)
+        
         if not import_session.tasks:
             error_msg = 'No upload tasks were created'
         elif not import_session.tasks[0].items:
             error_msg = 'No upload items found for task'
-        else:
-            # save record of this
-            Upload.objects.create_from_session(user, import_session)
+           
         # @todo once the random tmp9723481758915 type of name is not
         # around, need to track the name computed above, for now, the
         # target store name can be used
@@ -524,5 +534,7 @@ def final_step(upload_session, user):
 
     if upload_session.tempdir and os.path.exists(upload_session.tempdir):
         shutil.rmtree(upload_session.tempdir)
+
+    signals.upload_complete.send(sender=final_step, layer=saved_layer)
 
     return saved_layer
