@@ -22,6 +22,7 @@ from geonode import GeoNodeException
 from geonode.layers.utils import get_default_user
 from geonode.upload.models import Upload
 from geonode.upload.utils import create_geoserver_db_featurestore
+from geonode.layers.utils import layer_set_permissions
 
 import geoserver
 from geoserver.resource import Coverage
@@ -473,17 +474,13 @@ def final_step(upload_session, user):
     saved_layer.poc = poc_contact
     saved_layer.metadata_author = author_contact
 
-    _log('Saving to geonetwork')
-    saved_layer.save_to_geonetwork()
-
     # Set default permissions on the newly created layer
     # FIXME: Do this as part of the post_save hook
 
     permissions = upload_session.permissions
     _log('Setting default permissions for [%s]', name)
     if permissions is not None:
-        from geonode.maps.views import set_layer_permissions
-        set_layer_permissions(saved_layer, permissions)
+        layer_set_permissions(saved_layer, permissions)
 
     _log('Verifying the layer [%s] was created correctly' % name)
 
