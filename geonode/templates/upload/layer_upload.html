@@ -42,24 +42,35 @@
   <div id="upload_form">
   </div>
 </div>
-<script type="text/javascript" src="{% static "script/layer_upload.js" %}"></script>
-<script type="text/javascript" src="{% static "script/upload_common.js" %}"></script>
-<script type="text/javascript">
-{% autoescape off %}
-setup({
-    csrf_token : "{{ csrf_token }}",
-    form_target : "{% url data_upload %}",
-    userLookup : "{% url geonode.views.ajax_lookup %}"
-});
-{% if async_upload %}
-enableUploadProgress('upload_form');
-{% endif %}
-{% endautoescape %}
-</script>
+
 {% endif %}
 
 {% endblock %}
 
+
+{% block footer-extend %}
+
+
+<script type="text/javascript" src="{% static "script/layer_upload.js" %}"></script>
+
+<script type="text/javascript">
+{% autoescape off %}
+
+$(document).ready(function() { 
+
+  setup({
+      csrf_token : "{{ csrf_token }}",
+      form_target : "{% url data_upload %}",
+      userLookup : "{% url geonode.views.ajax_lookup %}"
+  });
+
+}); 
+{% endautoescape %}
+</script>
+
+
+
+{% endblock %}
 
 
 {% block sidebar %}
