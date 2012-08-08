@@ -156,6 +156,7 @@
 
     {% block extra_script %}{% endblock extra_script %}
     <script type="text/javascript">
+
     $(function() {
       $("input.user-select").select2({
         placeholder: {title: '{% trans "Add User..." %}', id: ""},
@@ -202,9 +203,15 @@
       $("input.asset-selector").live("change", toggle_buttons);
       toggle_buttons();
     });
+
     </script>
 
     <script type="text/javascript" src="{% url django.views.i18n.javascript_catalog %}"></script>
     <script type="text/javascript" src="{% url lang %}"></script>
+
+    {% block footer-extend %}
+    
+    {% endblock %}
+
   </body>
 </html>
