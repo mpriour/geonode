@@ -39,8 +39,15 @@
 
 {% if enough_storage %}
 
-  <div id="upload_form">
+  <!-- Uploader form -->
+  <div id="uploader" class="well">
+    <div id="upload_form_con">
+      <form id="upload_form">
+        <input id="main_input" type="file" />
+      </form>
+    </div>
   </div>
+
 </div>
 
 {% endif %}
@@ -50,6 +57,11 @@
 
 {% block footer-extend %}
 
+<script src="{% static "fileupload/js/jquery.ui.widget.js" %}"></script>
+<script src="{% static "fileupload/js/jquery.iframe-transport.js" %}"></script>
+<script src="{% static "fileupload/js/jquery.fileupload.js" %}"></script>
+<script src="{% static "fileupload/js/jquery.fileupload-fp.js" %}"></script>
+<script src="{% static "fileupload/js/jquery.fileupload-fp.js" %}"></script>
 
 <script type="text/javascript" src="{% static "script/layer_upload.js" %}"></script>
 
@@ -61,7 +73,7 @@ $(document).ready(function() {
   setup({
       csrf_token : "{{ csrf_token }}",
       form_target : "{% url data_upload %}",
-      userLookup : "{% url geonode.views.ajax_lookup %}"
+      user_lookup : "{% url geonode.views.ajax_lookup %}"
   });
 
 }); 
