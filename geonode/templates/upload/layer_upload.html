@@ -40,14 +40,20 @@
 {% if enough_storage %}
 
   <!-- Uploader form -->
-  <div id="uploader" class="well">
-    <div id="upload_form_con">
-      <form id="upload_form">
-        <input id="main_input" type="file" />
+  <div id="uploader">
+    <div id="upload_form_con" class="well">
+      <form id="upload_form" enctype="multipart/form-data" method="POST">
+
+        <span class="">
+          <p>Select files to upload</p>
+          <input type="file" multiple="" name="files[]">
+        </span>
       </form>
     </div>
   </div>
 
+  <div id="dropzone" class="well"> </div>
+  <div id="file-list"></div>
 </div>
 
 {% endif %}
