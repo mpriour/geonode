@@ -1,14 +1,48 @@
-var file_list = $('#file-list');
 
-var load_file_selections = function(data) {    
-    // whats the difference between original files and files.
-    var files = data.files;
 
-    for (var i = 0; i< files.length; i++) {
-        var file = files[i];
-        $('<p/>', {text: file.name}).appendTo(file_list);
+var global_files = {},
+    file_container = $('#file-container');
+
+var get_or_populate = function(hash, key, callback) {
+    if (typeof hash[key] === 'undefined') {
+        hash[key] = callback();
     };
+    return hash[key];
+};
 
+
+var base = function(name) {
+    return name.split('.')[0];
+};
+
+var group_by_name = function(data) {
+
+    $.each(data.files, function(idx, file) {
+        var name = base(file.name);
+        get_or_populate(global_files, name, function() {return []});
+        global_files[name].push(file);
+    });
+
+};
+
+var redraw = function() {
+
+    file_container.empty();
+
+    for(var name in global_files) {
+
+        var div = $('<div/>', {id: 'div-' + name}),
+            title = $('<p/>', {text: 'Uploading shapefile: ' + name}).appendTo(div),
+            ul = $('<ul/>').appendTo(div);
+
+        div.appendTo(file_container);
+
+        $.each(global_files[name], function(idx, file) {
+            var li = $('<li/>', {text: file.name}).appendTo(ul);
+                
+        });
+
+    };
 };
 
 var setup = function(options) {
@@ -22,15 +56,11 @@ var setup = function(options) {
     form.fileupload({
         dataType: 'json',
         dropZone: $('#dropzone'),
-        drop: function(e, data) {
-            load_file_selections(data);
-
-        },
         add: function(e, data) {
-            load_file_selections(data);
-
+            group_by_name(data);
+            redraw();
         }
-        
+
     });
     
 };
