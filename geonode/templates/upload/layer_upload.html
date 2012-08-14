@@ -29,6 +29,7 @@
     {% endfor %}
     {% endif %}
     {% block additional_info %}{% endblock %}
+
   {% if errors %}
     <div id="errors">
       {% for error in errors %}
@@ -44,10 +45,9 @@
     <div id="upload_form_con" class="well">
       <form id="upload_form" enctype="multipart/form-data" method="POST">
 
-        <span class="">
-          <p>Select files to upload</p>
-          <input type="file" multiple="" name="files[]">
-        </span>
+        <label>Upload files</label>
+        <input type="file" multiple="" name="files[]" />
+        <input type="submit" value="Send files to server" />
       </form>
     </div>
   </div>
@@ -76,7 +76,7 @@
 <script type="text/javascript">
 {% autoescape off %}
 
-$(document).ready(function() { 
+$(function() { 
 
   setup({
       csrf_token : "{{ csrf_token }}",
@@ -85,6 +85,7 @@ $(document).ready(function() {
   });
 
 }); 
+
 {% endautoescape %}
 </script>
 
