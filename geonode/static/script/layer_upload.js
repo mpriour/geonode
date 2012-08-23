@@ -91,8 +91,8 @@ LayerInfo.prototype.display_errors = function(div) {
 
 LayerInfo.prototype.display  = function(file_con) {
 
-    var self = this;
-         div   = $('<div/>').appendTo(file_con);
+    var self = this,
+        div   = $('<div/>').appendTo(file_con),
          table = $('<table/>', {
              'class': 'table table-bordered'}).appendTo(div),
          thead = $('<thead/>').appendTo(table);
@@ -134,14 +134,14 @@ var display_errors = function(div, errors) {
 
 
 var display_files = function(files) {
-    var file_con= $('#file-con');
-    _.map(files, function(info, name) {        
+    var file_con= $('#file-container');
+    _.map(files, function(info, name) {
         info.display(file_con);
     });
 };
 
 
-$(function() {
+var setup = function(options) {
     // jquery will not work for selecting an element because we need
     // access to the underlying file api
 
@@ -151,7 +151,7 @@ $(function() {
                 console.log(event);
             });
         },
-        form = $('file-uploader'); 
+        form = $('file-uploader');
     
     $('#file-uploader').change(function(event) {
         files = build_file_info(group_files(file_input.files));
@@ -164,4 +164,4 @@ $(function() {
         upload_files(temp_file);
     });
 
-});
+};
