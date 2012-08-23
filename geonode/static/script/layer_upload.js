@@ -1,103 +1,167 @@
-
+'use strict';
 // globals vars.... 
-var global_files = {},
-    file_container = $('#file-container');
+var sep = '.',
+    files; // global var for debugging
+
+var get_base = function(file) { return file.name.split(sep); };
+
+var get_ext = function(file) { 
+    var parts = get_base(file);
+    return parts[parts.length - 1];
+};
+
+var get_name = function(file) { return get_base(file)[0]; };
+
+// function to group files by name
+var group_files = function(files) {
+    return _.groupBy(files, get_name);
+};
 
 
-var get_or_populate = function(hash, key, callback) {
-    if (typeof hash[key] === 'undefined') {
-        hash[key] = callback();
+function LayerInfo(name, exts, type, errors, files) {
+    this.name = name;
+    this.exts = exts;
+    this.type = type;
+    this.errors = errors;
+    this.files = files;
+    // populate the type
+    this.check_type();
+};
+
+LayerInfo.prototype.check_type = function() {
+    var self = this;
+    _.map(this.files, function(file) {
+        var ext = get_ext(file);
+        self.exts.push(ext);
+
+        if (ext.toLowerCase() === 'shp') {
+            self.type = 'shapefile';
+        } else if (ext.toLowerCase() === 'tif') {
+            self.tyoe = 'geotiff'
+        };
+
+    });
+
+};
+
+LayerInfo.prototype.collect_errors = function() {
+    var self = this;
+    if (self.type === 'shapefile') {
+        self.collect_shape_errors();
     };
-    return hash[key];
-};
-
-
-var base = function(name) {
-    return name.split('.')[0];
-};
-
-var identify = function(file) {
 
 };
 
-var group_by_name = function(data) {
+LayerInfo.prototype.collect_shape_errors = function() {
+    var self = this;
+    var required = ['shp', 'prj', 'dbf', 'shx'],
+         extensions = _.toArray(self.exts);
 
-    $.each(data.files, function(idx, file) {
-        var name = base(file.name);
-        get_or_populate(global_files, name, function() {return []});
-        global_files[name].push(file);
+    _.map(required, function(req) {
+        var idx = $.inArray(req, extensions);
+        if (idx === -1) {
+            self.errors.push('Missing a ' + req + ' file, which is required');
+        };
+
+    });    
+};
+
+
+LayerInfo.prototype.upload_files = function() {
+    var self = this,
+        reader = new FileReader(),
+        xhr = new XMLHttpRequest(),
+        form_data = new FormData();
+
+    xhr.open('POST', '/upload', true);
+    form_data.append('main', file);
+    xhr.send(form_data);
+};
+
+LayerInfo.prototype.display_errors = function(div) {
+    var self = this;
+
+    _.map(self.errors, function(e) {
+        var alert = $('<div/>', {'class': 'alert alert-error'}).appendTo(div);
+        $('<p/>', {text: e}).appendTo(alert);
     });
 
-};
-
-var draw_file_table = function() {
 
 };
 
-var upload_shapefile = function() {
-    var a = $(this),
-        name = a.data('name'),
-        files = global_files[name];
-    $.ajax({
-        
-    });
-};
+LayerInfo.prototype.display  = function(file_con) {
 
-var redraw = function() {
-    var list_template = Hogan.compile(
-        '{{#files}}' + 
-        ' <li>{{name}}</li>' +
-        '{{/files}}'
-    );
+    var self = this;
+         div   = $('<div/>').appendTo(file_con);
+         table = $('<table/>', {
+             'class': 'table table-bordered'}).appendTo(div),
+         thead = $('<thead/>').appendTo(table);
 
-    file_container.empty();
-
-    for(var name in global_files) {
-
-        var div = $('<div/>', {id: 'div-' + name}),
-            title = $('<p/>', {text: 'Uploading shapefile: ' + name}).appendTo(div),
-            a = $('<a/>', {text: 'Upload shapefile'}).appendTo(div),
-            ul = $('<ul/>').appendTo(div);
-        a.data('name', name);
-        a.click(upload_shapefile);
-
-        div.appendTo(file_container);
-        var out = list_template.render({files: global_files[name]});
-        ul.append(out);
-
-    };
-};
-
-var setup = function(options) {
-    var csrf_token  = options.csrf_token,
-        form_target = options.form_target,
-        user_lookup = options.user_lookup,
-        form        = $('#upload_form'),
-        container = $('#upload_form_con');
-
-
-    form.fileupload({
-        dataType: 'json',
-        dropZone: $('#dropzone'),
-        add: function(e, data) {
-            group_by_name(data);
-            // Note the add method is called everytime an file is add
-            // to the upload process. Which means this method is
-            // called a bunch of times. We wipe the ul element before
-            // we insert the file to 
-            redraw(data);
-        },
-        formData: function(form) {
-            console.log(form);
-        },
-        submit: function(e, data) {
-            e.preventDefault();
-            console.log('submit called');
-        },
-        done: function(e, data) {
-            console.log('done calback called');
-        }
-
-    });
+    $('<th/>', {text: 'Name'}).appendTo(thead);
+    $('<th/>', {text: 'Size'}).appendTo(thead);
     
+    self.display_errors(div);
+
+    _.map(self.files, function (file) {
+        self.display_file(table, file);
+    });
 };
+
+LayerInfo.prototype.display_file = function(table, file) {
+    var self = this,
+         tr = $('<tr/>').appendTo(table);
+    $('<td/>', {text: file.name}).appendTo(tr);
+    $('<td/>', {text: file.size}).appendTo(tr);
+
+};
+
+
+var build_file_info = function(files) {
+    var res = {};
+    _.map(files, function(assoc_files, name) {
+
+        var info = new LayerInfo(name, [], null, [], assoc_files);
+        info.collect_errors();
+        res[name] = info;
+    });
+    return res;
+};
+
+
+var display_errors = function(div, errors) {
+
+};
+
+
+var display_files = function(files) {
+    var file_con= $('#file-con');
+    _.map(files, function(info, name) {        
+        info.display(file_con);
+    });
+};
+
+
+$(function() {
+    // jquery will not work for selecting an element because we need
+    // access to the underlying file api
+
+    var file_input = document.getElementById('file-input'),
+        attach_events = function() {    
+            $('#file-con a').click(function(event) {
+                console.log(event);
+            });
+        },
+        form = $('file-uploader'); 
+    
+    $('#file-uploader').change(function(event) {
+        files = build_file_info(group_files(file_input.files));
+        display_files(files);
+        attach_events();
+    });
+
+    $('#upload-button').click(function(event) {
+        var temp_file = files['nybb'].files[0];
+        upload_files(temp_file);
+    });
+
+});
