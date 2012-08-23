@@ -41,22 +41,16 @@
 {% if enough_storage %}
 
   <!-- Uploader form -->
-  <div id="uploader">
-    <div id="upload_form_con" class="well">
-      <form id="upload_form" enctype="multipart/form-data" method="POST">
 
-        <label>Upload files</label>
-        <input type="file" multiple="" name="files[]" />
-        <input type="submit" value="Send files to server" />
+    <div>
+      <p>Form below here</p>
+      <form id="file-uploader" method="post" enctype="multipart/form-data">
+        <input id="file-input" type="file" multiple>
       </form>
+      <div id="file-container"></div>
     </div>
-  </div>
 
-  <div id="dropzone" class="well"> </div>
-
-  <div id="file-container"></div>
-
-</div>
+</div2>
 
 {% endif %}
 
@@ -65,6 +59,7 @@
 
 {% block footer-extend %}
 
+<script src="{% static "underscore-min.js" %}"></script>
 <script src="{% static "fileupload/js/jquery.ui.widget.js" %}"></script>
 <script src="{% static "fileupload/js/jquery.iframe-transport.js" %}"></script>
 <script src="{% static "fileupload/js/jquery.fileupload.js" %}"></script>
