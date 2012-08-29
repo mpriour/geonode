@@ -1,7 +1,13 @@
+/* steps:
+ *  
+ *
+ *
+ */
+
 'use strict';
 // globals vars.... 
 var sep = '.',
-    files; // global var for debugging
+    files = {}; // global var for debugging
 
 var get_base = function(file) { return file.name.split(sep); };
 
@@ -25,10 +31,10 @@ function LayerInfo(name, exts, type, errors, files) {
     this.errors = errors;
     this.files = files;
     // populate the type
-    this.check_type();
+    this._check_type();
 };
 
-LayerInfo.prototype.check_type = function() {
+LayerInfo.prototype._check_type = function() {
     var self = this;
     _.map(this.files, function(file) {
         var ext = get_ext(file);
@@ -134,7 +140,7 @@ var display_errors = function(div, errors) {
 
 
 var display_files = function(files) {
-    var file_con= $('#file-container');
+    var file_con= $('#file-queue');
     _.map(files, function(info, name) {
         info.display(file_con);
     });
