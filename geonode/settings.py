@@ -254,7 +254,7 @@ AGON_RATINGS_CATEGORY_CHOICES = {
     "maps.Map": {
         "map": "How good is this map?"
     },
-    "maps.Layer": {
+    "layers.Layer": {
         "layer": "How good is this layer?"
     },
 }
@@ -410,14 +410,16 @@ GEONODE_CLIENT_LOCATION = "/static/geonode/"
 DB_DATASTORE = False
 
 #Database datastore connection settings
-DB_DATASTORE_NAME = ''
+DB_DATASTORE_DATABASE = ''
 DB_DATASTORE_USER = ''
 DB_DATASTORE_PASSWORD = ''
 DB_DATASTORE_HOST = ''
 DB_DATASTORE_PORT = ''
 DB_DATASTORE_TYPE = ''
+DB_DATASTORE_NAME = ''
 
 UPLOADER_SHOW_TIME_STEP = False
+#The name of the store in Geoserver
 
 # Load more settings from a file called local_settings.py if it exists
 try:
