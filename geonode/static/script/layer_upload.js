@@ -1,9 +1,3 @@
-/* steps:
- *  
- *
- *
- */
-
 'use strict';
 // globals vars.... 
 var sep = '.',
@@ -36,16 +30,16 @@ function LayerInfo(name, exts, type, errors, files) {
 
 LayerInfo.prototype._check_type = function() {
     var self = this;
-    _.map(this.files, function(file) {
+
+    $.each(this.files, function(idx, file) {
+
         var ext = get_ext(file);
         self.exts.push(ext);
-
         if (ext.toLowerCase() === 'shp') {
             self.type = 'shapefile';
         } else if (ext.toLowerCase() === 'tif') {
-            self.tyoe = 'geotiff'
+            self.type = 'geotiff'
         };
-
     });
 
 };
@@ -63,13 +57,13 @@ LayerInfo.prototype.collect_shape_errors = function() {
     var required = ['shp', 'prj', 'dbf', 'shx'],
          extensions = _.toArray(self.exts);
 
-    _.map(required, function(req) {
+    $.each(required, function(idx, req) {
         var idx = $.inArray(req, extensions);
         if (idx === -1) {
             self.errors.push('Missing a ' + req + ' file, which is required');
         };
+    });
 
-    });    
 };
 
 
@@ -87,11 +81,11 @@ LayerInfo.prototype.upload_files = function() {
 LayerInfo.prototype.display_errors = function(div) {
     var self = this;
 
-    _.map(self.errors, function(e) {
+    $.each(self.errors, function(idx, e) {
         var alert = $('<div/>', {'class': 'alert alert-error'}).appendTo(div);
         $('<p/>', {text: e}).appendTo(alert);
+    
     });
-
 
 };
 
@@ -108,7 +102,7 @@ LayerInfo.prototype.display  = function(file_con) {
     
     self.display_errors(div);
 
-    _.map(self.files, function (file) {
+    $.each(self.files, function(idx, file) {
         self.display_file(table, file);
     });
 };
@@ -121,36 +115,33 @@ LayerInfo.prototype.display_file = function(table, file) {
 
 };
 
-
+// TODO
 var build_file_info = function(files) {
     var res = {};
-    _.map(files, function(assoc_files, name) {
 
+    $.each(files, function(name, assoc_files) {
         var info = new LayerInfo(name, [], null, [], assoc_files);
         info.collect_errors();
-        res[name] = info;
+        res[name] = info;        
     });
+
     return res;
-};
-
-
-var display_errors = function(div, errors) {
-
 };
 
 
 var display_files = function(files) {
     var file_con= $('#file-queue');
-    _.map(files, function(info, name) {
+
+    $.each(files, function(name, info) {
         info.display(file_con);
     });
 };
 
 
 var setup = function(options) {
+
     // jquery will not work for selecting an element because we need
     // access to the underlying file api
-
     var file_input = document.getElementById('file-input'),
         attach_events = function() {    
             $('#file-con a').click(function(event) {
