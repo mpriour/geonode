@@ -22,6 +22,32 @@ var FileInfo = function(name) {
     this.name = name;
 };
 
+var FileType = function(name, main, requires) {
+    this.name     = name;
+    this.main     = main;
+    this.requires = requires;
+
+};
+
+FileType.prototype.is_type = function(file) {
+    return (this.main === get_ext(file).toLowerCase());
+};
+
+var shp = new FileType('ESIR Shapefile', 'shp', ['shp', 'prj', 'dbf', 'shx', 'xml']);
+var tif = new FileType('GeoTiff File', 'tif', ['tif']);
+var csv = new FileType('Comma Separated File', 'csv', ['csv']);
+
+var types = [shp, tif, csv]
+
+var find_file_type = function(file) {
+    for (var i = 0; i < types.length; i ++) {
+        var type = types[i]
+        if (type.is_type(file)) {
+            return type;
+        };
+    };
+};
+
 
 /* LayerInfo is a container where we collect information about each
  * layer an user is attempting to upload.
@@ -31,12 +57,15 @@ var FileInfo = function(name) {
  *   2. a list of associated files
  *   3. a list of errors that the user should address
  */
-var LayerInfo = function(name, type, errors, files) {
-    this.name = name;
-    this.type = type;
-    this.errors = errors;
-    this.files = files;
+var LayerInfo = function(name, type, errors, files, element) {
+    this.name    = name;
+    this.type    = type;
+    this.errors  = errors;
+    this.files   = files;
+    this.element = element;
+
     this._check_type();
+
 };
 
 LayerInfo.prototype._check_type = function() {
@@ -45,10 +74,14 @@ LayerInfo.prototype._check_type = function() {
     $.each(this.files, function(idx, file) {
 
         var ext = get_ext(file);
-        if (ext.toLowerCase() === 'shp') {
+
+        switch (ext) {
+        case 'shp':
             self.type = 'shapefile';
-        } else if (ext.toLowerCase() === 'tif') {
-            self.type = 'geotiff'
+            break;
+        case 'tif':
+            self.type = 'geotif';
+            break;
         };
     });
 
@@ -66,13 +99,11 @@ LayerInfo.prototype.collect_errors = function() {
 LayerInfo.prototype.get_extensions = function() {
     var files = this.files,
         res = [];
-
     for (var i = 0; i < files.length; i++) {
         var file = files[i], 
             extension = get_ext(file);
         res.push(extension);
-    }
-
+    };
     return res;
 };
 
