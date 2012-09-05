@@ -1,8 +1,8 @@
 'use strict';
-// globals vars.... 
 
-var sep = '.';
-var layers = {};
+var sep = '.',
+    layers = {},
+    file_queu= $('#file-queue');
 
 var get_base = function(file) { return file.name.split(sep); };
 
@@ -17,6 +17,12 @@ var group_files = function(files) {
     return _.groupBy(files, get_name);
 };
 
+
+var FileInfo = function(name) {
+    this.name = name;
+};
+
+
 /* LayerInfo is a container where we collect information about each
  * layer an user is attempting to upload.
  * 
@@ -25,7 +31,7 @@ var group_files = function(files) {
  *   2. a list of associated files
  *   3. a list of errors that the user should address
  */
-function LayerInfo(name, type, errors, files) {
+var LayerInfo = function(name, type, errors, files) {
     this.name = name;
     this.type = type;
     this.errors = errors;
@@ -61,17 +67,18 @@ LayerInfo.prototype.get_extensions = function() {
     var files = this.files,
         res = [];
 
-    for(var i = 0; i < files.length; i++) {
+    for (var i = 0; i < files.length; i++) {
         var file = files[i], 
             extension = get_ext(file);
         res.push(extension);
     }
+
     return res;
 };
 
 LayerInfo.prototype.collect_shape_errors = function() {
     var self = this,
-        required = ['shp', 'prj', 'dbf', 'shx'],
+        required = ['shp', 'prj', 'dbf', 'shx', 'xml'],
         extensions = this.get_extensions();
 
     $.each(required, function(idx, req) {
@@ -116,7 +123,7 @@ LayerInfo.prototype.display  = function(file_con) {
 
     $('<th/>', {text: 'Name'}).appendTo(thead);
     $('<th/>', {text: 'Size'}).appendTo(thead);
-    
+    $('<th/>').appendTo(thead);
     self.display_errors(div);
 
     $.each(self.files, function(idx, file) {
@@ -124,12 +131,42 @@ LayerInfo.prototype.display  = function(file_con) {
     });
 };
 
+/* Remove the div and remove the file from the LayerInfo object
+ *
+ */
+var remove_file = function(element) {
+    element.click(function(event) {
+        var target     = $(event.target),
+            layer_name = target.data('name'),
+            file_name  = target.data('file'),
+            layer_info = layers[layer_name];
+
+        for (var i = 0; i < layer_info.files.length; i++) {
+            var file = layer_info.files[i];
+            if (file.name == file_name) {
+                layer_info.files.splice(i, 1);
+            };
+        };
+        layer_info.collect_errors();
+        file_queu.empty();
+        layer_info.display(file_queu);
+    });
+};
+
 LayerInfo.prototype.display_file = function(table, file) {
     var self = this,
-         tr = $('<tr/>').appendTo(table);
+         tr = $('<tr/>').appendTo(table),
+         remove = $('<a/>', {text: 'Remove'}),
+         control = $('<td/>').appendTo(tr);
+
     $('<td/>', {text: file.name}).appendTo(tr);
     $('<td/>', {text: file.size}).appendTo(tr);
 
+    control.appendTo(tr);
+    remove.data('name', self.name);
+    remove.data('file', file.name);
+    remove.appendTo(control);
+    remove_file(remove);
 };
 
 /* When an user uploads a file, we need to check to see if there is
@@ -142,14 +179,13 @@ var build_file_info = function(files) {
 
 
     $.each(files, function(name, assoc_files) {
-        var info;
-        // check if the `LayerInfo` object already exists
         if (name in layers) {
-            info = layers[name]
+            // check if the `LayerInfo` object already exists
+            var info = layers[name]
             $.merge(info.files, assoc_files);
             info.collect_errors();
         } else {
-            info = new LayerInfo(name, null, [], assoc_files);
+            var info = new LayerInfo(name, null, [], assoc_files);
             layers[name] = info;
             info.collect_errors();
         };
@@ -157,16 +193,13 @@ var build_file_info = function(files) {
 
 };
 
-
 var display_files = function(files) {
-    var file_con= $('#file-queue');
-    file_con.empty();
+    file_queu.empty();
 
     $.each(files, function(name, info) {
-        info.display(file_con);
+        info.display(file_queu);
     });
 };
-
 
 var setup = function(options) {
 
