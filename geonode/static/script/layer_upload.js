@@ -1,7 +1,8 @@
 'use strict';
 // globals vars.... 
-var sep = '.',
-    files = {}; // global var for debugging
+
+var sep = '.';
+var layers = {};
 
 var get_base = function(file) { return file.name.split(sep); };
 
@@ -12,19 +13,23 @@ var get_ext = function(file) {
 
 var get_name = function(file) { return get_base(file)[0]; };
 
-// function to group files by name
 var group_files = function(files) {
     return _.groupBy(files, get_name);
 };
 
-
-function LayerInfo(name, exts, type, errors, files) {
+/* LayerInfo is a container where we collect information about each
+ * layer an user is attempting to upload.
+ * 
+ * Each LayerInfo has a
+ *   1. type
+ *   2. a list of associated files
+ *   3. a list of errors that the user should address
+ */
+function LayerInfo(name, type, errors, files) {
     this.name = name;
-    this.exts = exts;
     this.type = type;
     this.errors = errors;
     this.files = files;
-    // populate the type
     this._check_type();
 };
 
@@ -34,7 +39,6 @@ LayerInfo.prototype._check_type = function() {
     $.each(this.files, function(idx, file) {
 
         var ext = get_ext(file);
-        self.exts.push(ext);
         if (ext.toLowerCase() === 'shp') {
             self.type = 'shapefile';
         } else if (ext.toLowerCase() === 'tif') {
@@ -46,16 +50,29 @@ LayerInfo.prototype._check_type = function() {
 
 LayerInfo.prototype.collect_errors = function() {
     var self = this;
+    self.errors = [];
     if (self.type === 'shapefile') {
         self.collect_shape_errors();
     };
 
 };
 
+LayerInfo.prototype.get_extensions = function() {
+    var files = this.files,
+        res = [];
+
+    for(var i = 0; i < files.length; i++) {
+        var file = files[i], 
+            extension = get_ext(file);
+        res.push(extension);
+    }
+    return res;
+};
+
 LayerInfo.prototype.collect_shape_errors = function() {
-    var self = this;
-    var required = ['shp', 'prj', 'dbf', 'shx'],
-         extensions = _.toArray(self.exts);
+    var self = this,
+        required = ['shp', 'prj', 'dbf', 'shx'],
+        extensions = this.get_extensions();
 
     $.each(required, function(idx, req) {
         var idx = $.inArray(req, extensions);
@@ -115,22 +132,35 @@ LayerInfo.prototype.display_file = function(table, file) {
 
 };
 
-// TODO
+/* When an user uploads a file, we need to check to see if there is
+ * already an `LayerInfo` in the global layers object. If there is,
+ * append that file to that `LayerInfo` object. Other wise create a
+ * new `LayerInfo` object and add that to global Layers object.
+ */
+
 var build_file_info = function(files) {
-    var res = {};
+
 
     $.each(files, function(name, assoc_files) {
-        var info = new LayerInfo(name, [], null, [], assoc_files);
-        info.collect_errors();
-        res[name] = info;        
+        var info;
+        // check if the `LayerInfo` object already exists
+        if (name in layers) {
+            info = layers[name]
+            $.merge(info.files, assoc_files);
+            info.collect_errors();
+        } else {
+            info = new LayerInfo(name, null, [], assoc_files);
+            layers[name] = info;
+            info.collect_errors();
+        };
     });
 
-    return res;
 };
 
 
 var display_files = function(files) {
     var file_con= $('#file-queue');
+    file_con.empty();
 
     $.each(files, function(name, info) {
         info.display(file_con);
@@ -140,8 +170,6 @@ var display_files = function(files) {
 
 var setup = function(options) {
 
-    // jquery will not work for selecting an element because we need
-    // access to the underlying file api
     var file_input = document.getElementById('file-input'),
         attach_events = function() {    
             $('#file-con a').click(function(event) {
@@ -151,8 +179,9 @@ var setup = function(options) {
         form = $('file-uploader');
     
     $('#file-uploader').change(function(event) {
-        files = build_file_info(group_files(file_input.files));
-        display_files(files);
+        var grouped_files = group_files(file_input.files);
+        build_file_info(grouped_files);
+        display_files(layers);
         attach_events();
     });
 
