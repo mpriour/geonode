@@ -1,35 +1,39 @@
+/*global $: true,  */
+
 'use strict';
 
 var sep = '.',
     layers = {},
-    file_queu= $('#file-queue');
+    file_queu = $('#file-queue');
 
-var get_base = function(file) { return file.name.split(sep); };
+var get_base = function (file) { return file.name.split(sep); };
 
-var get_ext = function(file) { 
+
+var get_ext = function (file) {
     var parts = get_base(file);
     return parts[parts.length - 1];
 };
 
-var get_name = function(file) { return get_base(file)[0]; };
+var get_name = function (file) { return get_base(file)[0]; };
 
-var group_files = function(files) {
+var group_files = function (files) {
     return _.groupBy(files, get_name);
 };
 
 
-var FileInfo = function(name) {
+var FileInfo = function (name) {
     this.name = name;
 };
 
-var FileType = function(name, main, requires) {
+
+var FileType = function (name, main, requires) {
     this.name     = name;
     this.main     = main;
     this.requires = requires;
 
 };
 
-FileType.prototype.is_type = function(file) {
+FileType.prototype.is_type = function (file) {
     return (this.main === get_ext(file).toLowerCase());
 };
 
@@ -37,15 +41,17 @@ var shp = new FileType('ESIR Shapefile', 'shp', ['shp', 'prj', 'dbf', 'shx', 'xm
 var tif = new FileType('GeoTiff File', 'tif', ['tif']);
 var csv = new FileType('Comma Separated File', 'csv', ['csv']);
 
-var types = [shp, tif, csv]
+var types = [shp, tif, csv];
 
-var find_file_type = function(file) {
-    for (var i = 0; i < types.length; i ++) {
-        var type = types[i]
+var find_file_type = function (file) {
+    var i, type;
+
+    for (i = 0; i < types.length; i += 1) {
+        type = types[i];
         if (type.is_type(file)) {
             return type;
-        };
-    };
+        }
+    }
 };
 
 
@@ -57,21 +63,21 @@ var find_file_type = function(file) {
  *   2. a list of associated files
  *   3. a list of errors that the user should address
  */
-var LayerInfo = function(name, type, errors, files, element) {
+var LayerInfo = function (name, type, errors, files, element) {
     this.name    = name;
     this.type    = type;
     this.errors  = errors;
     this.files   = files;
     this.element = element;
 
-    this._check_type();
+    this.check_type();
 
 };
 
-LayerInfo.prototype._check_type = function() {
+LayerInfo.prototype.check_type = function () {
     var self = this;
 
-    $.each(this.files, function(idx, file) {
+    $.each(this.files, function (idx, file) {
 
         var ext = get_ext(file);
 
@@ -82,21 +88,21 @@ LayerInfo.prototype._check_type = function() {
         case 'tif':
             self.type = 'geotif';
             break;
-        };
+        }
     });
 
 };
 
-LayerInfo.prototype.collect_errors = function() {
+LayerInfo.prototype.collect_errors = function () {
     var self = this;
     self.errors = [];
     if (self.type === 'shapefile') {
         self.collect_shape_errors();
-    };
+    }
 
 };
 
-LayerInfo.prototype.get_extensions = function() {
+LayerInfo.prototype.get_extensions = function () {
     var files = this.files,
         res = [];
     for (var i = 0; i < files.length; i++) {
@@ -107,12 +113,12 @@ LayerInfo.prototype.get_extensions = function() {
     return res;
 };
 
-LayerInfo.prototype.collect_shape_errors = function() {
+LayerInfo.prototype.collect_shape_errors = function () {
     var self = this,
         required = ['shp', 'prj', 'dbf', 'shx', 'xml'],
         extensions = this.get_extensions();
 
-    $.each(required, function(idx, req) {
+    $.each(required, function (idx, req) {
         var idx = $.inArray(req, extensions);
         if (idx === -1) {
             self.errors.push('Missing a ' + req + ' file, which is required');
@@ -122,7 +128,7 @@ LayerInfo.prototype.collect_shape_errors = function() {
 };
 
 
-LayerInfo.prototype.upload_files = function() {
+LayerInfo.prototype.upload_files = function () {
     var self = this,
         reader = new FileReader(),
         xhr = new XMLHttpRequest(),
@@ -133,10 +139,10 @@ LayerInfo.prototype.upload_files = function() {
     xhr.send(form_data);
 };
 
-LayerInfo.prototype.display_errors = function(div) {
+LayerInfo.prototype.display_errors = function (div) {
     var self = this;
 
-    $.each(self.errors, function(idx, e) {
+    $.each(self.errors, function (idx, e) {
         var alert = $('<div/>', {'class': 'alert alert-error'}).appendTo(div);
         $('<p/>', {text: e}).appendTo(alert);
     
@@ -144,7 +150,7 @@ LayerInfo.prototype.display_errors = function(div) {
 
 };
 
-LayerInfo.prototype.display  = function(file_con) {
+LayerInfo.prototype.display  = function (file_con) {
 
     var self = this,
         div   = $('<div/>').appendTo(file_con),
@@ -157,7 +163,7 @@ LayerInfo.prototype.display  = function(file_con) {
     $('<th/>').appendTo(thead);
     self.display_errors(div);
 
-    $.each(self.files, function(idx, file) {
+    $.each(self.files, function (idx, file) {
         self.display_file(table, file);
     });
 };
@@ -165,8 +171,8 @@ LayerInfo.prototype.display  = function(file_con) {
 /* Remove the div and remove the file from the LayerInfo object
  *
  */
-var remove_file = function(element) {
-    element.click(function(event) {
+var remove_file = function (element) {
+    element.click(function (event) {
         var target     = $(event.target),
             layer_name = target.data('name'),
             file_name  = target.data('file'),
@@ -184,7 +190,7 @@ var remove_file = function(element) {
     });
 };
 
-LayerInfo.prototype.display_file = function(table, file) {
+LayerInfo.prototype.display_file = function (table, file) {
     var self = this,
          tr = $('<tr/>').appendTo(table),
          remove = $('<a/>', {text: 'Remove'}),
@@ -206,10 +212,10 @@ LayerInfo.prototype.display_file = function(table, file) {
  * new `LayerInfo` object and add that to global Layers object.
  */
 
-var build_file_info = function(files) {
+var build_file_info = function (files) {
 
 
-    $.each(files, function(name, assoc_files) {
+    $.each(files, function (name, assoc_files) {
         if (name in layers) {
             // check if the `LayerInfo` object already exists
             var info = layers[name]
@@ -224,32 +230,32 @@ var build_file_info = function(files) {
 
 };
 
-var display_files = function(files) {
+var display_files = function (files) {
     file_queu.empty();
 
-    $.each(files, function(name, info) {
+    $.each(files, function (name, info) {
         info.display(file_queu);
     });
 };
 
-var setup = function(options) {
+var setup = function (options) {
 
     var file_input = document.getElementById('file-input'),
-        attach_events = function() {    
+        attach_events = function () {    
             $('#file-con a').click(function(event) {
                 console.log(event);
             });
         },
         form = $('file-uploader');
     
-    $('#file-uploader').change(function(event) {
+    $('#file-uploader').change(function (event) {
         var grouped_files = group_files(file_input.files);
         build_file_info(grouped_files);
         display_files(layers);
         attach_events();
     });
 
-    $('#upload-button').click(function(event) {
+    $('#upload-button').click(function (event) {
         var temp_file = files['nybb'].files[0];
         upload_files(temp_file);
     });
