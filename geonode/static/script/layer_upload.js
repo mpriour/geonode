@@ -21,11 +21,6 @@ var group_files = function (files) {
 };
 
 
-var FileInfo = function (name) {
-    this.name = name;
-};
-
-
 var FileType = function (name, main, requires) {
     this.name     = name;
     this.main     = main;
@@ -37,15 +32,33 @@ FileType.prototype.is_type = function (file) {
     return (this.main === get_ext(file).toLowerCase());
 };
 
+FileType.prototype.find_type_errors = function (extensions) {
+    var errors = [];
+
+    $.each(this.requires, function (idx, req) {
+        idx = $.inArray(req, extensions);
+        if (idx === -1) {
+            errors.push('Missing a ' + req + ' file, which is required');
+        }
+    });
+    return errors;
+
+};
+
 var shp = new FileType('ESIR Shapefile', 'shp', ['shp', 'prj', 'dbf', 'shx', 'xml']);
 var tif = new FileType('GeoTiff File', 'tif', ['tif']);
 var csv = new FileType('Comma Separated File', 'csv', ['csv']);
 
 var types = [shp, tif, csv];
 
+/* Function to iterates through all of the known types and returns the
+ * type if it matches, if not return null
+ *
+ * File object must have a name property.
+ */
+
 var find_file_type = function (file) {
     var i, type;
-
     for (i = 0; i < types.length; i += 1) {
         type = types[i];
         if (type.is_type(file)) {
@@ -77,28 +90,17 @@ LayerInfo.prototype.check_type = function () {
     var self = this;
 
     $.each(this.files, function (idx, file) {
-
-        var ext = get_ext(file);
-
-        switch (ext) {
-        case 'shp':
-            self.type = 'shapefile';
-            break;
-        case 'tif':
-            self.type = 'geotif';
-            break;
+        var type = find_file_type(file);
+        if (type) {
+            self.type = type;
         }
     });
 
 };
 
 LayerInfo.prototype.collect_errors = function () {
-    var self = this;
-    self.errors = [];
-    if (self.type === 'shapefile') {
-        self.collect_shape_errors();
-    }
-
+    this.errors = []; // hard reset of errors, FIXME
+    this.errors = this.type.find_type_errors(this.get_extensions());
 };
 
 LayerInfo.prototype.get_extensions = function () {
@@ -115,23 +117,6 @@ LayerInfo.prototype.get_extensions = function () {
     }
     return res;
 };
-
-LayerInfo.prototype.collect_shape_errors = function () {
-    var self = this,
-        required = ['shp', 'prj', 'dbf', 'shx', 'xml'],
-        idx,
-        extensions = this.get_extensions();
-
-    $.each(required, function (idx, req) {
-        idx = $.inArray(req, extensions);
-        if (idx === -1) {
-            self.errors.push('Missing a ' + req + ' file, which is required');
-        }
-
-    });
-
-};
-
 
 LayerInfo.prototype.upload_files = function (file) {
     var self = this,
@@ -174,7 +159,7 @@ LayerInfo.prototype.display  = function (file_con) {
 };
 
 /* Remove the div and remove the file from the LayerInfo object
- *
+ * FIXME, this is a mess
  */
 var remove_file = function (element) {
     element.click(function (event) {

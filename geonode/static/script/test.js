@@ -27,11 +27,14 @@ describe('main test module', function () {
         types.push(blah);
         expect(types).to.have.length(4);
 
+
     });
 
     it('layerinfo object', function () {
         var info = new LayerInfo('describe', null, [], [{name: 'blah.shp'}]);
-
+        expect(info.type).to.an('object');
+        info.collect_errors();
+        expect(info.errors).to.have.length(4);
     });
 
 });
