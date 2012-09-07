@@ -30,7 +30,8 @@ describe('main test module', function () {
     });
 
     it('layerinfo object', function () {
-        //var info = new LayerInfo('describe', null, [], [{}]);
+        var info = new LayerInfo('describe', null, [], [{name: 'blah.shp'}]);
+
     });
 
 });

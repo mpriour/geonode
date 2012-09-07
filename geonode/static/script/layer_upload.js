@@ -1,4 +1,4 @@
-/*global $: true,  */
+/*global $: true, FileReader:true, XMLHttpRequest: true, FormData: true, document: true  */
 
 'use strict';
 
@@ -69,7 +69,6 @@ var LayerInfo = function (name, type, errors, files, element) {
     this.errors  = errors;
     this.files   = files;
     this.element = element;
-
     this.check_type();
 
 };
@@ -104,31 +103,37 @@ LayerInfo.prototype.collect_errors = function () {
 
 LayerInfo.prototype.get_extensions = function () {
     var files = this.files,
-        res = [];
-    for (var i = 0; i < files.length; i++) {
-        var file = files[i], 
-            extension = get_ext(file);
+        extension,
+        file,
+        res = [],
+        i;
+
+    for (i = 0; i < files.length; i += 1) {
+        file = files[i];
+        extension = get_ext(file);
         res.push(extension);
-    };
+    }
     return res;
 };
 
 LayerInfo.prototype.collect_shape_errors = function () {
     var self = this,
         required = ['shp', 'prj', 'dbf', 'shx', 'xml'],
+        idx,
         extensions = this.get_extensions();
 
     $.each(required, function (idx, req) {
-        var idx = $.inArray(req, extensions);
+        idx = $.inArray(req, extensions);
         if (idx === -1) {
             self.errors.push('Missing a ' + req + ' file, which is required');
-        };
+        }
+
     });
 
 };
 
 
-LayerInfo.prototype.upload_files = function () {
+LayerInfo.prototype.upload_files = function (file) {
     var self = this,
         reader = new FileReader(),
         xhr = new XMLHttpRequest(),
@@ -140,12 +145,13 @@ LayerInfo.prototype.upload_files = function () {
 };
 
 LayerInfo.prototype.display_errors = function (div) {
-    var self = this;
+    var self = this,
+        alert;
 
     $.each(self.errors, function (idx, e) {
-        var alert = $('<div/>', {'class': 'alert alert-error'}).appendTo(div);
+        alert = $('<div/>', {'class': 'alert alert-error'}).appendTo(div);
         $('<p/>', {text: e}).appendTo(alert);
-    
+
     });
 
 };
@@ -154,9 +160,8 @@ LayerInfo.prototype.display  = function (file_con) {
 
     var self = this,
         div   = $('<div/>').appendTo(file_con),
-         table = $('<table/>', {
-             'class': 'table table-bordered'}).appendTo(div),
-         thead = $('<thead/>').appendTo(table);
+        table = $('<table/>', {'class': 'table table-bordered'}).appendTo(div),
+        thead = $('<thead/>').appendTo(table);
 
     $('<th/>', {text: 'Name'}).appendTo(thead);
     $('<th/>', {text: 'Size'}).appendTo(thead);
@@ -174,16 +179,19 @@ LayerInfo.prototype.display  = function (file_con) {
 var remove_file = function (element) {
     element.click(function (event) {
         var target     = $(event.target),
+            i,
+            file,
             layer_name = target.data('name'),
             file_name  = target.data('file'),
             layer_info = layers[layer_name];
 
-        for (var i = 0; i < layer_info.files.length; i++) {
-            var file = layer_info.files[i];
-            if (file.name == file_name) {
+        for (i = 0; i < layer_info.files.length; i += 1) {
+            file = layer_info.files[i];
+
+            if (file.name === file_name) {
                 layer_info.files.splice(i, 1);
-            };
-        };
+            }
+        }
         layer_info.collect_errors();
         file_queu.empty();
         layer_info.display(file_queu);
@@ -192,9 +200,9 @@ var remove_file = function (element) {
 
 LayerInfo.prototype.display_file = function (table, file) {
     var self = this,
-         tr = $('<tr/>').appendTo(table),
-         remove = $('<a/>', {text: 'Remove'}),
-         control = $('<td/>').appendTo(tr);
+        tr = $('<tr/>').appendTo(table),
+        remove = $('<a/>', {text: 'Remove'}),
+        control = $('<td/>').appendTo(tr);
 
     $('<td/>', {text: file.name}).appendTo(tr);
     $('<td/>', {text: file.size}).appendTo(tr);
@@ -213,19 +221,20 @@ LayerInfo.prototype.display_file = function (table, file) {
  */
 
 var build_file_info = function (files) {
-
+    var info;
 
     $.each(files, function (name, assoc_files) {
+
         if (name in layers) {
             // check if the `LayerInfo` object already exists
-            var info = layers[name]
+            info = layers[name];
             $.merge(info.files, assoc_files);
             info.collect_errors();
         } else {
-            var info = new LayerInfo(name, null, [], assoc_files);
+            info = new LayerInfo(name, null, [], assoc_files);
             layers[name] = info;
             info.collect_errors();
-        };
+        }
     });
 
 };
@@ -241,13 +250,13 @@ var display_files = function (files) {
 var setup = function (options) {
 
     var file_input = document.getElementById('file-input'),
-        attach_events = function () {    
-            $('#file-con a').click(function(event) {
+        attach_events = function () {
+            $('#file-con a').click(function (event) {
                 console.log(event);
             });
         },
         form = $('file-uploader');
-    
+
     $('#file-uploader').change(function (event) {
         var grouped_files = group_files(file_input.files);
         build_file_info(grouped_files);
@@ -256,8 +265,7 @@ var setup = function (options) {
     });
 
     $('#upload-button').click(function (event) {
-        var temp_file = files['nybb'].files[0];
-        upload_files(temp_file);
+        // attach the event that uploads a single layer 
     });
 
 };
