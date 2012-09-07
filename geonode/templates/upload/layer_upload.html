@@ -41,14 +41,17 @@
 
 {% if enough_storage %}
   <!-- Start of uploader form -->
- <div id="drop-zone"></div>
- <form id="file-uploader" method="post" enctype="multipart/form-data">
-   <input id="file-input" type="file" multiple>
- </form>
- <div id="file-queue">
-   <h2>{% trans "Files to be uploaded" %}</h2>
- </div>
+  <div id="drop-zone"></div>
 
+  <form id="file-uploader" method="post" enctype="multipart/form-data">
+    <input id="file-input" type="file" multiple>
+  </form>
+
+  <div id="file-queue">
+    <h2>{% trans "Files to be uploaded" %}</h2>
+  </div>
+
+  <a href="#" id="upload-button" class="btn">Upload files</a>
   <!-- End of uploader form -->
 
 {% endif %}
