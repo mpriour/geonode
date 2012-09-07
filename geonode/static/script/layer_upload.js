@@ -22,7 +22,7 @@ var setup = function (options) {
         do_uploads,
         file_input,
         attach_events,
-        file_queu = $('#file-queue'),
+        file_queue = $('#file-queue'),
         csrf_token   = options.csrf_token,
         form_target  = options.form_target,
         user_lookup  = options.user_lookup,
@@ -203,8 +203,8 @@ var setup = function (options) {
                 }
             }
             layer_info.collect_errors();
-            file_queu.empty();
-            layer_info.display(file_queu);
+            file_queue.empty();
+            layer_info.display(file_queue);
         });
     };
 
@@ -250,10 +250,10 @@ var setup = function (options) {
     };
 
     display_files = function (files) {
-        file_queu.empty();
+        file_queue.empty();
 
         $.each(files, function (name, info) {
-            info.display(file_queu);
+            info.display(file_queue);
         });
     };
 
