@@ -1,4 +1,4 @@
-/*global $: true, FileReader:true, XMLHttpRequest: true, FormData: true, document: true, alert:true  */
+/*global $:true, FileReader:true, XMLHttpRequest:true, FormData:true, document:true, alert:true  */
 
 /*
  * TODO, when removing a .prj from a shape file.. we should give the
@@ -10,20 +10,24 @@
  */
 
 'use strict';
+var underscore = _.noConflict();
+
 var UPLOAD = (function () {
 
     var layers = {},
         FileType,
         LayerInfo,
+        find_file_type,
+        initialize,
         get_base,
         get_ext,
         get_name,
         group_files,
+        layer_template,
         shp,
         tif,
         csv,
         types,
-        find_file_type,
         remove_file,
         build_file_info,
         display_files,
@@ -44,9 +48,8 @@ var UPLOAD = (function () {
     get_name = function (file) { return get_base(file)[0]; };
 
     group_files = function (files) {
-        return _.groupBy(files, get_name);
+        return underscore.groupBy(files, get_name);
     };
-
 
     FileType = function (name, main, requires) {
         this.name     = name;
@@ -72,7 +75,6 @@ var UPLOAD = (function () {
 
     };
 
-
     shp = new FileType('ESRI Shapefile', 'shp', ['shp', 'prj', 'dbf', 'shx']);
     tif = new FileType('GeoTiff File', 'tif', ['tif']);
     csv = new FileType('Comma Separated File', 'csv', ['csv']);
@@ -94,7 +96,6 @@ var UPLOAD = (function () {
         }
     };
 
-
     /* LayerInfo is a container where we collect information about each
      * layer an user is attempting to upload.
      * 
@@ -115,21 +116,18 @@ var UPLOAD = (function () {
 
     LayerInfo.prototype.check_type = function () {
         var self = this;
-
         $.each(this.files, function (idx, file) {
             var type = find_file_type(file);
             if (type) {
                 self.type = type;
             }
         });
-
     };
 
     LayerInfo.prototype.collect_errors = function () {
         this.errors = []; // hard reset of errors, FIXME
         this.errors = this.type.find_type_errors(this.get_extensions());
     };
-
 
     LayerInfo.prototype.get_extensions = function () {
         var files = this.files,
@@ -147,12 +145,10 @@ var UPLOAD = (function () {
     };
 
     LayerInfo.prototype.upload_files = function () {
-        var self = this,
-            reader = new FileReader(),
+        var reader = new FileReader(),
             xhr = new XMLHttpRequest(),
             form_data = new FormData();
 
-        // xhr.setRequestHeader('X-CSRFToken', csrf_token);
         xhr.open('POST', '', true);
         form_data.append('main', this.files[0]);
         xhr.send(form_data);
@@ -160,86 +156,99 @@ var UPLOAD = (function () {
     };
 
     LayerInfo.prototype.display_errors = function (div) {
-        var self = this,
-            alert;
-
-        $.each(self.errors, function (idx, e) {
+        var alert;
+        $.each(this.errors, function (idx, e) {
             alert = $('<div/>', {'class': 'alert alert-error'}).appendTo(div);
             $('<p/>', {text: e}).appendTo(alert);
 
         });
+    };
+
+    /* template for the layer info div */
+    layer_template = underscore.template(
+        '<div class="file-element" id="<%= name %>-element">' +
+            '<div>' +
+               '<div><h3><%= name %></h3></div>' +
+               '<div><p><%= type %></p></div>' +
+            '</div>' +
+            '<ul class="files"></ul>' +
+            '<ul class="errors"></ul>' +
+            '</div>'
+    );
+
+    LayerInfo.prototype.display  = function () {
+        var errors,
+            li = layer_template({
+                name: this.name,
+                type: this.type.name,
+                files: this.files
+            });
+        file_queue.append(li);
+        this.display_files();
+        this.display_errors();
 
     };
 
-    LayerInfo.prototype.display  = function (file_con) {
+    remove_file = function (event) {
+        var target = $(event.target),
+            layer_info,
+            layer_name = target.data('layer'),
+            file_name  = target.data('file');
 
-        var self = this,
-            div   = $('<div/>').appendTo(file_con),
-            table = $('<table/>', {'class': 'table table-bordered'}).appendTo(div),
-            thead = $('<thead/>').appendTo(table);
+        layer_info = layers[layer_name];
 
-        $('<th/>', {text: 'Name'}).appendTo(thead);
-        $('<th/>', {text: 'Size'}).appendTo(thead);
-        $('<th/>').appendTo(thead);
-        self.display_errors(div);
-
-        $.each(self.files, function (idx, file) {
-            self.display_file(table, file);
-        });
-    };
-
-    /* Remove the div and remove the file from the LayerInfo object
-     * FIXME, this is a mess
-     */
-    remove_file = function (element) {
-        element.click(function (event) {
-            var target     = $(event.target),
-                i,
-                file,
-                layer_name = target.data('name'),
-                file_name  = target.data('file'),
-                layer_info = layers[layer_name];
-
-            for (i = 0; i < layer_info.files.length; i += 1) {
-                file = layer_info.files[i];
-
-                if (file.name === file_name) {
-                    layer_info.files.splice(i, 1);
-                }
-            }
+        if (layer_info) {
+            layer_info.remove_file(file_name);
             layer_info.collect_errors();
-            file_queue.empty();
-            layer_info.display(file_queue);
+            layer_info.display_files();
+            layer_info.display_errors();
+        }
+
+    };
+
+    LayerInfo.prototype.display_files = function () {
+        var self = this,
+            ul = $('#' + this.name + '-element .files');
+        ul.empty();
+
+        $.each(this.files, function (idx, file) {
+            var li = $('<li/>').appendTo(ul),
+                p = $('<p/>', {text: file.name}).appendTo(li),
+                a  = $('<a/>', {text: ' Remove'});
+            a.data('layer', self.name);
+            a.data('file',  file.name);
+            a.appendTo(p);
+            a.click(function (event) {
+                remove_file(event);
+            });
+        });
+
+    };
+
+    LayerInfo.prototype.display_errors = function () {
+        var ul = $('#' + this.name + '-element .errors').first();
+        ul.empty();
+
+        $.each(this.errors, function (idx, error) {
+            $('<li/>', {text: error, 'class': 'alert alert-error'}).appendTo(ul);
         });
     };
 
-    LayerInfo.prototype.display_file = function (table, file) {
-        var self = this,
-            tr = $('<tr/>').appendTo(table),
-            remove = $('<a/>', {text: 'Remove'}),
-            control = $('<td/>').appendTo(tr);
+    LayerInfo.prototype.remove_file = function (name) {
+        var length = this.files.length, i, file;
 
-        $('<td/>', {text: file.name}).appendTo(tr);
-        $('<td/>', {text: file.size}).appendTo(tr);
+        for (i = 0; i < length; i += 1) {
+            file = this.files[i];
+            if (name === file.name) {
+                this.files.splice(i, 1);
+            }
+        }
 
-        control.appendTo(tr);
-        remove.data('name', self.name);
-        remove.data('file', file.name);
-        remove.appendTo(control);
-        remove_file(remove);
     };
-
-    /* When an user uploads a file, we need to check to see if there is
-     * already an `LayerInfo` in the global layers object. If there is,
-     * append that file to that `LayerInfo` object. Other wise create a
-     * new `LayerInfo` object and add that to global Layers object.
-     */
 
     build_file_info = function (files) {
         var info;
-
         $.each(files, function (name, assoc_files) {
-
             if (layers.hasOwnProperty(name)) {
                 // check if the `LayerInfo` object already exists
                 info = layers[name];
@@ -254,45 +263,47 @@ var UPLOAD = (function () {
 
     };
 
-    display_files = function (files) {
-        file_queue.empty();
+    display_files = function () {
+        //file_queue.empty();
 
-        $.each(files, function (name, info) {
-            info.display(file_queue);
+        $.each(layers, function (name, info) {
+            info.display();
+
         });
     };
 
     do_uploads = function () {
-
         $.each(layers, function (name, layer) {
             layer.upload_files();
         });
-
     };
 
+    initialize = function (options) {
 
-    $('#file-uploader').change(function (event) {
-        var grouped_files = group_files(file_input.files);
-        build_file_info(grouped_files);
-        display_files(layers);
-    });
+        $('#file-uploader').change(function (event) {
+            var files = group_files(file_input.files);
+            build_file_info(files);
+            display_files();
+        });
 
-    $('#upload-button').click(function (event) {
-        // attach the event that uploads a single layer 
-
-        if ($.isEmptyObject(layers)) {
-            alert('You must select some files first.');
-        } else {
-            do_uploads();
-        }
-
-    });
+        $('#upload-button').click(function (event) {
+            // attach the event that uploads a single layer 
+            if ($.isEmptyObject(layers)) {
+                alert('You must select some files first.');
+            } else {
+                do_uploads();
+            }
+        });
+    };
 
     // public api
     return {
+        layers: layers,
         LayerInfo: LayerInfo,
         FileType: FileType,
         types: types,
-        find_file_type: find_file_type
+        find_file_type: find_file_type,
+        initialize: initialize
     };
+
 }());

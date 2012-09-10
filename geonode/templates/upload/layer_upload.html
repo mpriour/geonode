@@ -47,8 +47,10 @@
     <input id="file-input" type="file" multiple>
   </form>
 
-  <div id="file-queue">
+  <div>
     <h2>{% trans "Files to be uploaded" %}</h2>
+    <div id="file-queue">
+    </div>
   </div>
 
   <a href="#" id="upload-button" class="btn">Upload files</a>
@@ -86,10 +88,10 @@
 
 $(function() { 
 
-  setup({
-      csrf_token : "{{ csrf_token }}",
-      form_target : "{% url data_upload %}",
-      user_lookup : "{% url geonode.views.ajax_lookup %}"
+  UPLOAD.initialize({
+     csrf_token : "{{ csrf_token }}",
+     form_target : "{% url data_upload %}",
+     user_lookup : "{% url geonode.views.ajax_lookup %}"
   });
 
 }); 
