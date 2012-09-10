@@ -1,6 +1,29 @@
 /*global $: true, FileReader:true, XMLHttpRequest: true, FormData: true, document: true, alert:true  */
 
+/*
+ * TODO, when removing a .prj from a shape file.. we should give the
+ * user an warning, not an error.
+ * 1. Add templates
+ * 2. Fix csrf_token
+ * 3. Move class defs into their own files
+ * 4. Put everything into a namespace
+ */
+
 'use strict';
+
+
+var UPLOAD = (function () {
+    var uploader = {};
+
+    uploader.my_method = function () {
+        alert('hello matt');
+    };
+
+    return uploader;
+
+}());
+
+
 var setup = function (options) {
 
     var sep = '.',
@@ -25,8 +48,7 @@ var setup = function (options) {
         file_queue = $('#file-queue'),
         csrf_token   = options.csrf_token,
         form_target  = options.form_target,
-        user_lookup  = options.user_lookup,
-        form = $('file-uploader');
+        user_lookup  = options.user_lookup;
 
     file_input = document.getElementById('file-input');
 
@@ -68,7 +90,7 @@ var setup = function (options) {
 
     };
 
-    shp = new FileType('ESIR Shapefile', 'shp', ['shp', 'prj', 'dbf', 'shx', 'xml']);
+    shp = new FileType('ESRI Shapefile', 'shp', ['shp', 'prj', 'dbf', 'shx']);
     tif = new FileType('GeoTiff File', 'tif', ['tif']);
     csv = new FileType('Comma Separated File', 'csv', ['csv']);
 
@@ -148,7 +170,9 @@ var setup = function (options) {
             xhr = new XMLHttpRequest(),
             form_data = new FormData();
 
-        xhr.open('POST', '/data/upload', true);
+        xhr.setRequestHeader('X-CSRFToken', csrf_token);
+        xhr.open('POST', form_target, true);
+
         form_data.append('main', this.files[0]);
         xhr.send(form_data);
 
@@ -224,11 +248,11 @@ var setup = function (options) {
         remove_file(remove);
     };
 
-/* When an user uploads a file, we need to check to see if there is
- * already an `LayerInfo` in the global layers object. If there is,
- * append that file to that `LayerInfo` object. Other wise create a
- * new `LayerInfo` object and add that to global Layers object.
- */
+    /* When an user uploads a file, we need to check to see if there is
+     * already an `LayerInfo` in the global layers object. If there is,
+     * append that file to that `LayerInfo` object. Other wise create a
+     * new `LayerInfo` object and add that to global Layers object.
+     */
 
     build_file_info = function (files) {
         var info;
@@ -266,27 +290,17 @@ var setup = function (options) {
     };
 
 
-
-
-    attach_events = function () {
-        $('#file-con a').click(function (event) {
-            console.log(event);
-        });
-    };
-
-
     $('#file-uploader').change(function (event) {
         var grouped_files = group_files(file_input.files);
         build_file_info(grouped_files);
         display_files(layers);
-        attach_events();
     });
 
     $('#upload-button').click(function (event) {
         // attach the event that uploads a single layer 
 
         if ($.isEmptyObject(layers)) {
-            alert('You must upload some files first.');
+            alert('You must select some files first.');
         } else {
             do_uploads();
         }
