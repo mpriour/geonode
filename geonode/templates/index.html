@@ -3,12 +3,13 @@
 
 {% block title %} {% trans "Welcome!" %} - {{ block.super }} {% endblock %}
 
+{% block main %}
 {% block body_outer %}
   <div class="hero-unit">
     <h1>{% trans "Welcome" %}</h1>
     <p>
       {% blocktrans %}
-        GeoNode is an open source platform for sharing geospatial data and maps.  If you have any questions about the software or service, join our mailing list by emailing <em>geonode@librelist.com</em>.
+        GeoNode is an open source platform for sharing geospatial data and maps.  If you have any questions about the software or service, join our <a href="https://groups.google.com/d/forum/geonode-users">mailing list</a>.
       {% endblocktrans %}
     </p>
     <p>
@@ -50,4 +51,5 @@
         <a href="{% url layer_search_page %}">{% trans "Advanced Search" %}</a>
     </div>
   </div>
+{% endblock %}
 {% endblock %}
