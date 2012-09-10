@@ -10,30 +10,15 @@
  */
 
 'use strict';
-
-
 var UPLOAD = (function () {
-    var uploader = {};
 
-    uploader.my_method = function () {
-        alert('hello matt');
-    };
-
-    return uploader;
-
-}());
-
-
-var setup = function (options) {
-
-    var sep = '.',
-        layers = {},
+    var layers = {},
+        FileType,
+        LayerInfo,
         get_base,
         get_ext,
         get_name,
         group_files,
-        FileType,
-        LayerInfo,
         shp,
         tif,
         csv,
@@ -45,14 +30,11 @@ var setup = function (options) {
         do_uploads,
         file_input,
         attach_events,
-        file_queue = $('#file-queue'),
-        csrf_token   = options.csrf_token,
-        form_target  = options.form_target,
-        user_lookup  = options.user_lookup;
+        file_queue = $('#file-queue');
 
     file_input = document.getElementById('file-input');
 
-    get_base = function (file) { return file.name.split(sep); };
+    get_base = function (file) { return file.name.split('.'); };
 
     get_ext = function (file) {
         var parts = get_base(file);
@@ -90,6 +72,7 @@ var setup = function (options) {
 
     };
 
+
     shp = new FileType('ESRI Shapefile', 'shp', ['shp', 'prj', 'dbf', 'shx']);
     tif = new FileType('GeoTiff File', 'tif', ['tif']);
     csv = new FileType('Comma Separated File', 'csv', ['csv']);
@@ -101,7 +84,6 @@ var setup = function (options) {
      *
      * File object must have a name property.
      */
-
     find_file_type = function (file) {
         var i, type;
         for (i = 0; i < types.length; i += 1) {
@@ -170,9 +152,8 @@ var setup = function (options) {
             xhr = new XMLHttpRequest(),
             form_data = new FormData();
 
-        xhr.setRequestHeader('X-CSRFToken', csrf_token);
-        xhr.open('POST', form_target, true);
-
+        // xhr.setRequestHeader('X-CSRFToken', csrf_token);
+        xhr.open('POST', '', true);
         form_data.append('main', this.files[0]);
         xhr.send(form_data);
 
@@ -259,7 +240,7 @@ var setup = function (options) {
 
         $.each(files, function (name, assoc_files) {
 
-            if (name in layers) {
+            if (layers.hasOwnProperty(name)) {
                 // check if the `LayerInfo` object already exists
                 info = layers[name];
                 $.merge(info.files, assoc_files);
@@ -307,4 +288,11 @@ var setup = function (options) {
 
     });
 
-};
+    // public api
+    return {
+        LayerInfo: LayerInfo,
+        FileType: FileType,
+        types: types,
+        find_file_type: find_file_type
+    };
+}());
