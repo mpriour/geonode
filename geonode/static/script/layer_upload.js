@@ -10,7 +10,8 @@
  */
 
 'use strict';
-var underscore = _.noConflict();
+
+var underscore = _.noConflict(); // make jslint less angry about `_`
 
 var UPLOAD = (function () {
 
@@ -32,11 +33,9 @@ var UPLOAD = (function () {
         build_file_info,
         display_files,
         do_uploads,
-        file_input,
         attach_events,
-        file_queue = $('#file-queue');
+        file_queue;
 
-    file_input = document.getElementById('file-input');
 
     get_base = function (file) { return file.name.split('.'); };
 
@@ -91,7 +90,7 @@ var UPLOAD = (function () {
         for (i = 0; i < types.length; i += 1) {
             type = types[i];
             if (type.is_type(file)) {
-                return type;
+                return {type: type, file: file};
             }
         }
     };
@@ -104,12 +103,12 @@ var UPLOAD = (function () {
      *   2. a list of associated files
      *   3. a list of errors that the user should address
      */
-    LayerInfo = function (name, type, errors, files, element) {
+    LayerInfo = function (name, files) {
         this.name    = name;
-        this.type    = type;
-        this.errors  = errors;
         this.files   = files;
-        this.element = element;
+        this.type    = null;
+        this.main    = null;
+        this.errors  = [];
         this.check_type();
 
     };
@@ -117,9 +116,12 @@ var UPLOAD = (function () {
     LayerInfo.prototype.check_type = function () {
         var self = this;
         $.each(this.files, function (idx, file) {
-            var type = find_file_type(file);
-            if (type) {
-                self.type = type;
+            var results = find_file_type(file);
+            // if we find the type of the file, we also find the "main"
+            // file
+            if (results) {
+                self.type = results.type;
+                self.main = results.file;
             }
         });
     };
@@ -150,18 +152,9 @@ var UPLOAD = (function () {
             form_data = new FormData();
 
         xhr.open('POST', '', true);
-        form_data.append('main', this.files[0]);
+        form_data.append('base_file', this.main);
         xhr.send(form_data);
 
-    };
-
-    LayerInfo.prototype.display_errors = function (div) {
-        var alert;
-        $.each(this.errors, function (idx, e) {
-            alert = $('<div/>', {'class': 'alert alert-error'}).appendTo(div);
-            $('<p/>', {text: e}).appendTo(alert);
-
-        });
     };
 
     /* template for the layer info div */
@@ -199,9 +192,7 @@ var UPLOAD = (function () {
 
         if (layer_info) {
             layer_info.remove_file(file_name);
-            layer_info.collect_errors();
-            layer_info.display_files();
-            layer_info.display_errors();
+            layer_info.display_refresh();
         }
 
     };
@@ -218,9 +209,7 @@ var UPLOAD = (function () {
             a.data('layer', self.name);
             a.data('file',  file.name);
             a.appendTo(p);
-            a.click(function (event) {
-                remove_file(event);
-            });
+            a.on('click', remove_file);
         });
 
     };
@@ -232,6 +221,12 @@ var UPLOAD = (function () {
         $.each(this.errors, function (idx, error) {
             $('<li/>', {text: error, 'class': 'alert alert-error'}).appendTo(ul);
         });
+    };
+
+    LayerInfo.prototype.display_refresh = function () {
+        this.collect_errors();
+        this.display_files();
+        this.display_errors();
     };
 
     LayerInfo.prototype.remove_file = function (name) {
@@ -253,9 +248,9 @@ var UPLOAD = (function () {
                 // check if the `LayerInfo` object already exists
                 info = layers[name];
                 $.merge(info.files, assoc_files);
-                info.collect_errors();
+                info.display_refresh();
             } else {
-                info = new LayerInfo(name, null, [], assoc_files);
+                info = new LayerInfo(name, assoc_files);
                 layers[name] = info;
                 info.collect_errors();
             }
@@ -264,36 +259,33 @@ var UPLOAD = (function () {
     };
 
     display_files = function () {
-        //file_queue.empty();
-
         $.each(layers, function (name, info) {
             info.display();
-
         });
     };
 
     do_uploads = function () {
-        $.each(layers, function (name, layer) {
-            layer.upload_files();
-        });
+        if ($.isEmptyObject(layers)) {
+            alert('You must select some files first.');
+        } else {
+            $.each(layers, function (name, layerinfo) {
+                layerinfo.upload_files();
+            });
+        }
     };
 
     initialize = function (options) {
+        var file_input = document.getElementById('file-input');
 
-        $('#file-uploader').change(function (event) {
+        file_queue = $(options.file_queue);
+
+        $(options.form).change(function (event) {
             var files = group_files(file_input.files);
             build_file_info(files);
             display_files();
         });
 
-        $('#upload-button').click(function (event) {
-            // attach the event that uploads a single layer 
-            if ($.isEmptyObject(layers)) {
-                alert('You must select some files first.');
-            } else {
-                do_uploads();
-            }
-        });
+        $(options.upload_button).on('click', do_uploads);
     };
 
     // public api
