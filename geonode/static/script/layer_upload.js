@@ -1,4 +1,4 @@
-/*global $:true, FileReader:true, XMLHttpRequest:true, FormData:true, document:true, alert:true  */
+/*global $:true, FileReader:true, window:true, XMLHttpRequest:true, FormData:true, document:true, alert:true  */
 
 /*
  * TODO, when removing a .prj from a shape file.. we should give the
@@ -33,6 +33,7 @@ var UPLOAD = (function () {
         build_file_info,
         display_files,
         do_uploads,
+        do_successful_upload,
         attach_events,
         file_queue;
 
@@ -146,15 +147,45 @@ var UPLOAD = (function () {
         return res;
     };
 
+
+    LayerInfo.prototype.prepare_form_data = function () {
+        var i, ext, file, perm, form_data = new FormData();
+        perm = {users: []};
+
+        form_data.append('base_file', this.main);
+        form_data.append('permissions', JSON.stringify(perm));
+
+        if (this.type === shp) {
+            for (i = 0; i < this.files.length; i += 1) {
+                file = this.files[i];
+                if (file.name !== this.main.name) {
+                    ext = get_ext(file);
+                    form_data.append(ext + '_file', file);
+                }
+            }
+        }
+        return form_data;
+    };
+
     LayerInfo.prototype.upload_files = function () {
         var reader = new FileReader(),
             xhr = new XMLHttpRequest(),
-            form_data = new FormData();
+            form_data = this.prepare_form_data();
 
         xhr.open('POST', '', true);
-        form_data.append('base_file', this.main);
-        xhr.send(form_data);
 
+        xhr.send(form_data);
+        xhr.onload = function (event) {
+            var response;
+            if (xhr.status === 200) {
+                response = JSON.parse(event.target.response);
+                if (response.success === false) {
+                    alert('Something went wrong -- ' + response.errors.join(', '));
+                } else {
+                    do_successful_upload(response);
+                }
+            }
+        };
     };
 
     /* template for the layer info div */
@@ -259,9 +290,14 @@ var UPLOAD = (function () {
     };
 
     display_files = function () {
+        file_queue.empty();
         $.each(layers, function (name, info) {
             info.display();
         });
+    };
+
+    do_successful_upload = function (response) {
+        window.location = response.redirect_to;
     };
 
     do_uploads = function () {
