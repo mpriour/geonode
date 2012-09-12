@@ -1,40 +1,28 @@
+/*global UPLOAD:true, test:true, ok:true, equal:true, deepEqual:true, FormData:true */
 'use strict';
+var up = UPLOAD;
 
-describe('main test module', function () {
+test('FileType', function () {
+    var type = new up.FileType('Test Type', 'test', ['req']);
 
-    it('split the file name', function () {
-
-        expect(get_ext({name: 'hello.shp'})).to.eql('shp');
-        expect(get_name({name: 'hello.shp'})).to.eql('hello');
-
-    });
-
-    it('creating a filetype object', function () {
-        var blah = new FileType('Blah type', 'blah', ['blah', 'more-blah']),
-            esri = find_file_type({'name': 'hello.shp'}),
-            blah_type = find_file_type({'name': 'hello.blah'});
-
-        expect(blah.name).to.eql('Blah type');
-        // Double check that we can correctly identify a file type
+    ok(type instanceof up.FileType, 'Does new return the correct object');
+    equal(type.main, 'test', 'Is the main type correct');
+    equal(type.name, 'Test Type');
+    ok(type.is_type({name: 'file.test'}), 'Can the type identify its own type');
+    // equal(type.find_type_errors(['req']), []);
+});
 
 
-        expect(esri).to.be.an('object');
-        expect(blah_type).to.be.an('undefined');
+test('Test LayerInfo object', function () {
+    var info = new up.LayerInfo('nybb', [{name: 'nybb.shp'}]),
+        form_data = info.prepare_form_data();
 
-        // make sure we have enough types
-        expect(types).to.have.length(3);
-        // add our blah type
-        types.push(blah);
-        expect(types).to.have.length(4);
+    ok(info instanceof up.LayerInfo);
+    // our test file is an shapefile
+    equal(info.type, up.types[0]);
 
+    deepEqual(info.get_extensions(), ["shp"]);
 
-    });
-
-    it('layerinfo object', function () {
-        var info = new LayerInfo('describe', null, [], [{name: 'blah.shp'}]);
-        expect(info.type).to.an('object');
-        info.collect_errors();
-        expect(info.errors).to.have.length(4);
-    });
+    ok(form_data instanceof FormData);
 
 });
