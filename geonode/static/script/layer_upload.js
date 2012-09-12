@@ -55,14 +55,7 @@ var UPLOAD = (function () {
      * on strings,  */
 
     get_base = function (file) {
-        var name;
-
-        if (file instanceof File) {
-            name = file.name.split('.');
-        } else {
-            name = file.split('.');
-        }
-        return name;
+        return file.name.split('.');
     };
 
     get_ext = function (file) {
@@ -179,8 +172,13 @@ var UPLOAD = (function () {
     };
 
 
-    LayerInfo.prototype.prepare_form_data = function () {
-        var i, ext, file, perm, form_data = new FormData();
+    LayerInfo.prototype.prepare_form_data = function (form_data) {
+        var i, ext, file, perm;
+
+        if (!form_data) {
+            form_data = new FormData();
+        }
+        // this should be generate from the permission widget
         perm = {users: []};
 
         form_data.append('base_file', this.main);
