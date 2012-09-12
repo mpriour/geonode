@@ -44,7 +44,7 @@
   <div id="drop-zone"></div>
 
   <form id="file-uploader" method="post" enctype="multipart/form-data">
-    <input id="file-input" type="file" multiple>
+    <input class="btn" id="file-input" type="file" multiple>
   </form>
 
   <div>
@@ -67,8 +67,11 @@
 <div>
   <h3>Supported Files</h3>
   <p><strong>ZIP:</strong> vector or raster layers</p>
-  <p><strong>Vector layers:</strong>SHP, DBF, SHX are required. PRJ required if layer is not EPSG:4326. SLD optional</p>
-  <p><strong>Raster layers:</strong> GEOTIFF required. WORLD, PRJ, files should be included if the original layer data included them</p>
+  <p><strong>Vector layers:</strong>SHP, DBF, SHX are required. PRJ
+  required if layer is not EPSG:4326. SLD optional</p>
+  <p><strong>Raster layers:</strong> GEOTIFF required. WORLD, PRJ,
+  files should be included if the original layer data included
+  them</p>
 </div>
 <div id="permissions_form"></div>
 </div>
@@ -97,7 +100,7 @@ $(function() {
      form: "#file-uploader"
   });
 
-}); 
+});
 
 {% endautoescape %}
 </script>
