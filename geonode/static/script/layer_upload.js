@@ -109,7 +109,7 @@ var UPLOAD = (function () {
     shp = new FileType('ESRI Shapefile', 'shp', ['shp', 'prj', 'dbf', 'shx']);
     tif = new FileType('GeoTiff File', 'tif', ['tif']);
     csv = new FileType('Comma Separated File', 'csv', ['csv']);
-    zip = new FileType('Zip', 'zip', ['zip']);
+    zip = new FileType('Zip File', 'zip', ['zip']);
 
     types = [shp, tif, csv, zip];
 
@@ -203,44 +203,28 @@ var UPLOAD = (function () {
             xhr = new XMLHttpRequest(),
             form_data = this.prepare_form_data();
 
-        // Can i just use the normal jquery ajax request here?
-        // $.ajax({
-        //     url: "stash.php",
-        //     type: "POST",
-        //     data: fd,
-        //     processData: false,  // tell jQuery not to process the data
-        //     contentType: false   // tell jQuery not to set contentType
-        // });
-
-        xhr.open('POST', '', true);
-
-        xhr.send(form_data);
-        xhr.onload = function (event) {
-            var response;
-            if (xhr.status === 200) {
-                // the upload returns a 200 status code even if there
-                // is an error.
-                response = JSON.parse(event.target.response);
-                if (response.success === false) {
-                    alert('Something went wrong -- ' + response.errors.join(', '));
-                } else {
-                    do_successful_upload(response);
-                }
-            }
-        };
+        $.ajax({
+            url: "",
+            type: "POST",
+            data: form_data,
+            processData: false, // make sure that jquery does not process the form data
+            contentType: false
+        }).done(function (resp) {
+            console.log(resp);
+        });
     };
 
     LayerInfo.prototype.display  = function () {
-        var errors,
-            li = layer_template({
+        var li = layer_template({
                 name: this.name,
                 type: this.type.name,
                 files: this.files
             });
+
         file_queue.append(li);
         this.display_files();
         this.display_errors();
-
+        return li;
     };
 
     remove_file = function (event) {
@@ -306,6 +290,7 @@ var UPLOAD = (function () {
 
     build_file_info = function (files) {
         var info;
+
         $.each(files, function (name, assoc_files) {
             if (layers.hasOwnProperty(name)) {
                 // check if the `LayerInfo` object already exists
@@ -329,7 +314,7 @@ var UPLOAD = (function () {
     };
 
     do_successful_upload = function (response) {
-        window.location = response.redirect_to;
+        console.log(response.redirect_to);
     };
 
     do_uploads = function () {
@@ -348,6 +333,7 @@ var UPLOAD = (function () {
         file_queue = $(options.file_queue);
 
         $(options.form).change(function (event) {
+            // this is a mess
             var files = group_files(file_input.files);
             build_file_info(files);
             display_files();
