@@ -197,9 +197,7 @@ var UPLOAD = (function () {
     };
 
     LayerInfo.prototype.upload_files = function () {
-        var reader = new FileReader(),
-            xhr = new XMLHttpRequest(),
-            form_data = this.prepare_form_data();
+        var form_data = this.prepare_form_data();
 
         $.ajax({
             url: "",
