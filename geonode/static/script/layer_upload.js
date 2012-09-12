@@ -155,15 +155,15 @@ var UPLOAD = (function () {
         form_data.append('base_file', this.main);
         form_data.append('permissions', JSON.stringify(perm));
 
-        if (this.type === shp) {
-            for (i = 0; i < this.files.length; i += 1) {
-                file = this.files[i];
-                if (file.name !== this.main.name) {
-                    ext = get_ext(file);
-                    form_data.append(ext + '_file', file);
-                }
+
+        for (i = 0; i < this.files.length; i += 1) {
+            file = this.files[i];
+            if (file.name !== this.main.name) {
+                ext = get_ext(file);
+                form_data.append(ext + '_file', file);
             }
         }
+
         return form_data;
     };
 
