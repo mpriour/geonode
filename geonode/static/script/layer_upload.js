@@ -285,7 +285,9 @@ var UPLOAD = (function () {
     };
 
     LayerInfo.prototype.remove_file = function (name) {
-        var length = this.files.length, i, file;
+        var length = this.files.length,
+            i,
+            file;
 
         for (i = 0; i < length; i += 1) {
             file = this.files[i];
