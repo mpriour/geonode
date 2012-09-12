@@ -134,8 +134,9 @@ var UPLOAD = (function () {
         this.type    = null;
         this.main    = null;
         this.errors  = [];
-        this.check_type();
 
+        this.check_type();
+        this.collect_errors();
     };
 
     LayerInfo.prototype.check_type = function () {
@@ -349,6 +350,10 @@ var UPLOAD = (function () {
 
     // public api
     return {
+        // expose these types for testing
+        shp: shp,
+        tif: tif,
+        csv: csv,
         layers: layers,
         LayerInfo: LayerInfo,
         FileType: FileType,
