@@ -1,4 +1,4 @@
-/*global $:true, FileReader:true, window:true, XMLHttpRequest:true, FormData:true, document:true, alert:true  */
+/*global $:true, FileReader:true, window:true, XMLHttpRequest:true, FormData:true, document:true, alert:true, File:true  */
 
 /*
  * TODO, when removing a .prj from a shape file.. we should give the
@@ -50,7 +50,19 @@ var UPLOAD = (function () {
             '</div>'
     );
 
-    get_base = function (file) { return file.name.split('.'); };
+    /* In order to test easly, this function needs to be able to work
+     * on strings,  */
+
+    get_base = function (file) {
+        var name;
+
+        if (file instanceof File) {
+            name = file.name.split('.');
+        } else {
+            name = file.split('.');
+        }
+        return name;
+    };
 
     get_ext = function (file) {
         var parts = get_base(file);
