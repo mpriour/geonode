@@ -28,6 +28,7 @@ var UPLOAD = (function () {
         shp,
         tif,
         csv,
+        zip,
         types,
         remove_file,
         build_file_info,
@@ -75,6 +76,12 @@ var UPLOAD = (function () {
         return underscore.groupBy(files, get_name);
     };
 
+    /** Create an instance of a FileType object
+     *  @constructor
+     *  @author Ivan Willig
+     *  @this {FileType}
+     *  @param {name, main, requires}
+     */
     FileType = function (name, main, requires) {
         this.name     = name;
         this.main     = main;
@@ -102,8 +109,9 @@ var UPLOAD = (function () {
     shp = new FileType('ESRI Shapefile', 'shp', ['shp', 'prj', 'dbf', 'shx']);
     tif = new FileType('GeoTiff File', 'tif', ['tif']);
     csv = new FileType('Comma Separated File', 'csv', ['csv']);
+    zip = new FileType('Zip', 'zip', ['zip']);
 
-    types = [shp, tif, csv];
+    types = [shp, tif, csv, zip];
 
     /* Function to iterates through all of the known types and returns the
      * type if it matches, if not return null
@@ -120,13 +128,11 @@ var UPLOAD = (function () {
         }
     };
 
-    /* LayerInfo is a container where we collect information about each
-     * layer an user is attempting to upload.
-     * 
-     * Each LayerInfo has a
-     *   1. type
-     *   2. a list of associated files
-     *   3. a list of errors that the user should address
+    /** Creates an instance of a LayerInfo
+     *  @constructor
+     *  @author Ivan Willig
+     *  @this {LayerInfo}
+     *  @param {name, files}
      */
     LayerInfo = function (name, files) {
         this.name    = name;
@@ -356,6 +362,7 @@ var UPLOAD = (function () {
         shp: shp,
         tif: tif,
         csv: csv,
+        zip: zip,
         layers: layers,
         LayerInfo: LayerInfo,
         FileType: FileType,
