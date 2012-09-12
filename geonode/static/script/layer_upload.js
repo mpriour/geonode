@@ -38,6 +38,18 @@ var UPLOAD = (function () {
         file_queue;
 
 
+    /* template for the layer info div */
+    layer_template = underscore.template(
+        '<div class="file-element" id="<%= name %>-element">' +
+            '<div>' +
+               '<div><h3><%= name %></h3></div>' +
+               '<div><p><%= type %></p></div>' +
+            '</div>' +
+            '<ul class="files"></ul>' +
+            '<ul class="errors"></ul>' +
+            '</div>'
+    );
+
     get_base = function (file) { return file.name.split('.'); };
 
     get_ext = function (file) {
@@ -172,12 +184,23 @@ var UPLOAD = (function () {
             xhr = new XMLHttpRequest(),
             form_data = this.prepare_form_data();
 
+        // Can i just use the normal jquery ajax request here?
+        // $.ajax({
+        //     url: "stash.php",
+        //     type: "POST",
+        //     data: fd,
+        //     processData: false,  // tell jQuery not to process the data
+        //     contentType: false   // tell jQuery not to set contentType
+        // });
+
         xhr.open('POST', '', true);
 
         xhr.send(form_data);
         xhr.onload = function (event) {
             var response;
             if (xhr.status === 200) {
+                // the upload returns a 200 status code even if there
+                // is an error.
                 response = JSON.parse(event.target.response);
                 if (response.success === false) {
                     alert('Something went wrong -- ' + response.errors.join(', '));
@@ -187,18 +210,6 @@ var UPLOAD = (function () {
             }
         };
     };
-
-    /* template for the layer info div */
-    layer_template = underscore.template(
-        '<div class="file-element" id="<%= name %>-element">' +
-            '<div>' +
-               '<div><h3><%= name %></h3></div>' +
-               '<div><p><%= type %></p></div>' +
-            '</div>' +
-            '<ul class="files"></ul>' +
-            '<ul class="errors"></ul>' +
-            '</div>'
-    );
 
     LayerInfo.prototype.display  = function () {
         var errors,
