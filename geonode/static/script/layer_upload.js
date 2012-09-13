@@ -318,7 +318,12 @@ var UPLOAD = (function () {
     display_files = function () {
         file_queue.empty();
         $.each(layers, function (name, info) {
-            info.display();
+            if (!info.type) {
+                alert('File ' + info.name + ' is an unsupported file type, please select another file.');
+                delete layers[name];
+            } else {
+                info.display();
+            }
         });
     };
 
