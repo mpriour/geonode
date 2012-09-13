@@ -25,6 +25,9 @@ var UPLOAD = (function () {
         get_name,
         group_files,
         layer_template,
+        error_template,
+        error_element,
+        log_error,
         shp,
         tif,
         csv,
@@ -38,6 +41,13 @@ var UPLOAD = (function () {
         attach_events,
         file_queue;
 
+    error_template = underscore.template(
+        '<li class="alert alert-error"><strong><%= title %></strong><p><%= message %></p></li>'
+    );
+
+    log_error = function (options) {
+        $('#global-errors').append(error_template(options));
+    };
 
     /* template for the layer info div */
     layer_template = underscore.template(
@@ -102,7 +112,7 @@ var UPLOAD = (function () {
     shp = new FileType('ESRI Shapefile', 'shp', ['shp', 'prj', 'dbf', 'shx']);
     tif = new FileType('GeoTiff File', 'tif', ['tif']);
     csv = new FileType('Comma Separated File', 'csv', ['csv']);
-    zip = new FileType('Zip File', 'zip', ['zip']);
+    zip = new FileType('Zip Archives', 'zip', ['zip']);
 
     types = [shp, tif, csv, zip];
 
@@ -209,6 +219,10 @@ var UPLOAD = (function () {
         return form_data;
     };
 
+    LayerInfo.prototype.mark_success = function (resp) {
+        console.log(resp);
+    };
+
     LayerInfo.prototype.upload_files = function () {
         var form_data = this.prepare_form_data();
 
@@ -219,7 +233,11 @@ var UPLOAD = (function () {
             processData: false, // make sure that jquery does not process the form data
             contentType: false
         }).done(function (resp) {
-            console.log(resp);
+            if (resp.success === true) {
+                this.mark_success(resp);
+            } else {
+                alert('Error uploading ' + this.name + ' file');
+            }
         });
     };
 
@@ -302,7 +320,6 @@ var UPLOAD = (function () {
 
         $.each(files, function (name, assoc_files) {
             if (layers.hasOwnProperty(name)) {
-                // check if the `LayerInfo` object already exists
                 info = layers[name];
                 $.merge(info.files, assoc_files);
                 info.display_refresh();
@@ -319,7 +336,10 @@ var UPLOAD = (function () {
         file_queue.empty();
         $.each(layers, function (name, info) {
             if (!info.type) {
-                alert('File ' + info.name + ' is an unsupported file type, please select another file.');
+                log_error({
+                    title: 'Unsupported type',
+                    message: 'File ' + info.name + ' is an unsupported file type, please select another file.'
+                });
                 delete layers[name];
             } else {
                 info.display();
