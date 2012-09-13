@@ -138,6 +138,9 @@ var UPLOAD = (function () {
         this.collect_errors();
     };
 
+    /** Checks the type of the Layer.
+     *
+     */
     LayerInfo.prototype.check_type = function () {
         var self = this;
         $.each(this.files, function (idx, file) {
@@ -151,9 +154,16 @@ var UPLOAD = (function () {
         });
     };
 
+    /** Delegates to the Layer Type to find all of the errors
+     *  associated with this type.
+     */
     LayerInfo.prototype.collect_errors = function () {
-        this.errors = []; // hard reset of errors, FIXME
-        this.errors = this.type.find_type_errors(this.get_extensions());
+        if (this.type) {
+            this.errors = [];
+            this.errors = this.type.find_type_errors(this.get_extensions());
+        } else {
+            this.errors.push('Unknown type, please try again');
+        }
     };
 
     LayerInfo.prototype.get_extensions = function () {
@@ -171,7 +181,10 @@ var UPLOAD = (function () {
         return res;
     };
 
-
+    /** Build a new FormData object from the current state of the
+     * LayerInfo object.
+     * @returns {FromData}
+     */
     LayerInfo.prototype.prepare_form_data = function (form_data) {
         var i, ext, file, perm;
 
@@ -274,11 +287,11 @@ var UPLOAD = (function () {
         var length = this.files.length,
             i,
             file;
-
         for (i = 0; i < length; i += 1) {
             file = this.files[i];
             if (name === file.name) {
                 this.files.splice(i, 1);
+                break;
             }
         }
 
