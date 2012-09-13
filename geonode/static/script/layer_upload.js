@@ -41,15 +41,15 @@ var UPLOAD = (function () {
         attach_events,
         file_queue;
 
+    // error template
     error_template = underscore.template(
-        '<li class="alert alert-error"><strong><%= title %></strong><p><%= message %></p></li>'
+        '<li class="alert alert-error">' +
+            '<button class="close" data-dismiss="alert">&times;</button>' +
+            '<strong><%= title %></strong><p><%= message %></p>' +
+         '</li>'
     );
 
-    log_error = function (options) {
-        $('#global-errors').append(error_template(options));
-    };
-
-    /* template for the layer info div */
+    // template for the layer info div
     layer_template = underscore.template(
         '<div class="file-element" id="<%= name %>-element">' +
             '<div>' +
@@ -60,6 +60,10 @@ var UPLOAD = (function () {
             '<ul class="errors"></ul>' +
             '</div>'
     );
+
+    log_error = function (options) {
+        $('#global-errors').append(error_template(options));
+    };
 
     /* In order to test easly, this function needs to be able to work
      * on strings,  */
@@ -138,12 +142,15 @@ var UPLOAD = (function () {
      *  @param {name, files}
      */
     LayerInfo = function (name, files) {
-        this.name    = name;
-        this.files   = files;
-        this.type    = null;
-        this.main    = null;
-        this.errors  = [];
 
+        this.name     = name;
+        this.files    = files;
+
+        this.type     = null;
+        this.main     = null;
+        this.errors   = [];
+        this.selector = '#' + this.name + '-element';
+        this.element  = null;
         this.check_type();
         this.collect_errors();
     };
@@ -225,7 +232,6 @@ var UPLOAD = (function () {
 
     LayerInfo.prototype.upload_files = function () {
         var form_data = this.prepare_form_data();
-
         $.ajax({
             url: "",
             type: "POST",
@@ -251,6 +257,7 @@ var UPLOAD = (function () {
         file_queue.append(li);
         this.display_files();
         this.display_errors();
+        this.element = $(this.selector);
         return li;
     };
 
