@@ -28,6 +28,8 @@ var UPLOAD = (function () {
         error_template,
         error_element,
         log_error,
+        info_template,
+        info,
         shp,
         tif,
         csv,
@@ -49,6 +51,10 @@ var UPLOAD = (function () {
          '</li>'
     );
 
+    info_template = underscore.template(
+        '<div class="alert <%= level %>"><p><%= message %></p></div>'
+    );
+
     // template for the layer info div
     layer_template = underscore.template(
         '<div class="file-element" id="<%= name %>-element">' +
@@ -58,6 +64,7 @@ var UPLOAD = (function () {
             '</div>' +
             '<ul class="files"></ul>' +
             '<ul class="errors"></ul>' +
+            '<div id="status"></div>' +
             '</div>'
     );
 
@@ -65,8 +72,18 @@ var UPLOAD = (function () {
         $('#global-errors').append(error_template(options));
     };
 
-    /* In order to test easly, this function needs to be able to work
-     * on strings,  */
+    /** Info function takes an object and returns a correctly
+     *  formatted bootstrap alert element.
+     * 
+     *  @returns {string}
+     */
+    info = function (options) {
+        return info_template(options);
+    };
+
+    /* 
+     * @returns {array}
+     */
 
     get_base = function (file) {
         return file.name.split('.');
@@ -199,8 +216,8 @@ var UPLOAD = (function () {
     };
 
     /** Build a new FormData object from the current state of the
-     * LayerInfo object.
-     * @returns {FromData}
+     *  LayerInfo object.
+     *  @returns {FromData}
      */
     LayerInfo.prototype.prepare_form_data = function (form_data) {
         var i, ext, file, perm;
@@ -227,22 +244,44 @@ var UPLOAD = (function () {
     };
 
     LayerInfo.prototype.mark_success = function (resp) {
-        console.log(resp);
+        var self = this;
+        $.ajax({
+            url: resp.redirect_to
+        }).done(function (resp) {
+            var status = self.element.find('#status'),
+                msg = info({level: 'alert-success', message: 'Your file was successfully uploaded.'});
+            status.empty();
+            status.append(msg);
+        });
+
+    };
+
+    LayerInfo.prototype.mark_start = function () {
+        var msg = info({level: 'alert-info', message: 'Your upload has started.'});
+        this.element.find('#status').append(msg);
     };
 
     LayerInfo.prototype.upload_files = function () {
-        var form_data = this.prepare_form_data();
+        var form_data = this.prepare_form_data(),
+            self = this;
         $.ajax({
             url: "",
             type: "POST",
+            async: false,
             data: form_data,
             processData: false, // make sure that jquery does not process the form data
-            contentType: false
+            contentType: false,
+            beforeSend: function () {
+                self.mark_start();
+            }
         }).done(function (resp) {
+            var status, msg;
             if (resp.success === true) {
-                this.mark_success(resp);
+                self.mark_success(resp);
             } else {
-                alert('Error uploading ' + this.name + ' file');
+                status = self.element.find('#status');
+                msg = info({level: 'alert-error', message: 'Something went wrong' + resp.errors.join(',')});
+                status.append(msg);
             }
         });
     };
