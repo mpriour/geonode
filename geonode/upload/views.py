@@ -282,8 +282,12 @@ def run_response(req, upload_session):
 
 def final_step_view(req, upload_session):
     saved_layer = upload.final_step(upload_session, req.user)
-    return HttpResponseRedirect(saved_layer.get_absolute_url())
-
+    return JSONResponse(
+        {'id': saved_layer.id,
+         'name': saved_layer.name,
+         'store': saved_layer.store,
+         'srid': saved_layer.srid }
+    )
 
 _steps = {
     'save': save_step_view,
