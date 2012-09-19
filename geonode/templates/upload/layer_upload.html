@@ -16,7 +16,11 @@
 {% block main %}
 <div class="twocol">
     <h2>{% trans "Add data" %}</h2>
+    
+    <a href="{% url data_upload_status %}">Go to your past uploads</a>
+
     {% if incomplete %}
+    
     <h3>Incomplete Uploads</h3>
     <p>You have the following incomplete uploads:</p>
     {% for u in incomplete %}
