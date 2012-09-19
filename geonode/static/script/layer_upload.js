@@ -36,6 +36,7 @@ var UPLOAD = (function () {
         zip,
         types,
         remove_file,
+        host,
         build_file_info,
         display_files,
         do_uploads,
@@ -139,8 +140,8 @@ var UPLOAD = (function () {
 
     /* Function to iterates through all of the known types and returns the
      * type if it matches, if not return null
-     *
-     * File object must have a name property.
+     * @params {File}
+     * @returns {object}
      */
     find_file_type = function (file) {
         var i, type;
@@ -248,10 +249,18 @@ var UPLOAD = (function () {
         $.ajax({
             url: resp.redirect_to
         }).done(function (resp) {
-            var status = self.element.find('#status'),
+            var msg, status = self.element.find('#status'), a;
+            if (resp.success) {
+                a = $('<a/>', {href: host + '/data/geonode:' + resp.name, text: 'Your layer'});
                 msg = info({level: 'alert-success', message: 'Your file was successfully uploaded.'});
-            status.empty();
-            status.append(msg);
+                status.empty();
+                status.append(msg);
+                status.append(a);
+            } else {
+                msg = info({level: 'alert-error', message: 'Error, ' + resp.errors.join(' ,')});
+                status.empty(msg);
+                status.append(msg);
+            }
         });
 
     };
@@ -267,7 +276,6 @@ var UPLOAD = (function () {
         $.ajax({
             url: "",
             type: "POST",
-            async: false,
             data: form_data,
             processData: false, // make sure that jquery does not process the form data
             contentType: false,
@@ -409,7 +417,7 @@ var UPLOAD = (function () {
 
     initialize = function (options) {
         var file_input = document.getElementById('file-input');
-
+        host = 'http://localhost:8000';
         file_queue = $(options.file_queue);
 
         $(options.form).change(function (event) {
