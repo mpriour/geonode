@@ -283,11 +283,11 @@ def run_response(req, upload_session):
 def final_step_view(req, upload_session):
     saved_layer = upload.final_step(upload_session, req.user)
     return JSONResponse(
-        {'id': saved_layer.id,
+        {'success': True,
+         'id': saved_layer.id,
          'name': saved_layer.name,
          'store': saved_layer.store,
-         'srid': saved_layer.srid }
-    )
+         'srid': saved_layer.srid })
 
 _steps = {
     'save': save_step_view,
@@ -326,7 +326,6 @@ def get_next_step(upload_session):
 @csrf_exempt
 def view(req, step):
     """Main uploader view"""
-
     upload_session = None
 
     if step is None:
@@ -381,7 +380,11 @@ class UploadFileCreateView(CreateView):
     def form_valid(self, form):
         self.object = form.save()
         f = self.request.FILES.get('file')
-        data = [{'name': f.name, 'url': settings.MEDIA_URL + "uploads/" + f.name.replace(" ", "_"), 'thumbnail_url': settings.MEDIA_URL + "pictures/" + f.name.replace(" ", "_"), 'delete_url': reverse('data_upload_remove', args=[self.object.id]), 'delete_type': "DELETE"}]
+        data = [{'name': f.name,
+                 'url': settings.MEDIA_URL + "uploads/" + f.name.replace(" ", "_"),
+                 'thumbnail_url': settings.MEDIA_URL + "pictures/" + f.name.replace(" ", "_"),
+                 'delete_url': reverse('data_upload_remove',
+                                       args=[self.object.id]), 'delete_type': "DELETE"}]
         response = JSONResponse(data, {}, response_mimetype(self.request))
         response['Content-Disposition'] = 'inline; filename=files.json'
         return response
@@ -393,11 +396,40 @@ class UploadFileCreateView(CreateView):
         return response
 
 
+@login_required
+def view_upload_status(request):
+    return render_to_response(
+        'upload/status.html',
+        RequestContext(request)
+    )
+
+
+@login_required
+def show_upload_sessions(request):
+    sessions = Upload.objects.filter(
+        user=request.user).order_by('-date')
+    return JSONResponse([
+        {'id': s.id,
+         'url': s.layer.get_absolute_url(),
+         'name': s.name,
+         'layer_id': s.layer.id,
+         'layer_name': s.layer.name,
+         'state': s.state,
+         'date': s.date.strftime('%B %d %H %M'),
+         } for s in sessions])
+
+
+@login_required
+def delete_session(request):
+    return HttpResponse()
+
+
 def response_mimetype(request):
     if "application/json" in request.META['HTTP_ACCEPT']:
         return "application/json"
     else:
         return "text/plain"
+
 
 class UploadFileDeleteView(DeleteView):
     model = UploadFile
@@ -415,6 +447,7 @@ class UploadFileDeleteView(DeleteView):
             return response
         else:
             return HttpResponseRedirect(reverse('data_upload_new'))
+
 
 class JSONResponse(HttpResponse):
     """JSON response class."""
