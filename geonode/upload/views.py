@@ -431,6 +431,15 @@ def response_mimetype(request):
         return "text/plain"
 
 
+class UploadDelete(DeleteView):
+    model = Upload
+
+    def delete(self, request, *args, **kwargs):
+        self.object = self.get_object()
+        self.object.delete()
+        return JSONResponse('okay')
+
+
 class UploadFileDeleteView(DeleteView):
     model = UploadFile
 
