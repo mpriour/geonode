@@ -50,8 +50,9 @@ urlpatterns = patterns('',
                 {'template': 'developer.html'}, name='dev'),
 
     # Data views
+    (r'^data/upload/', include('geonode.upload.urls')),
     (r'^data/', include('geonode.layers.urls')),
-    
+
     # Map views
     (r'^maps/', include('geonode.maps.urls')),
 

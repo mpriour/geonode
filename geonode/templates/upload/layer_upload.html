@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% load static from staticfiles %}
+
+{% block title %} {% trans "Upload Layer"  %} - {{ block.super }} {% endblock %}
+
+{% block head %}
+{% include "geonode/ext_header.html" %}
+{% include "geonode/app_header.html" %}
+{% include "geonode/geo_header.html" %}
+<link rel="stylesheet" type="text/css" href="{{ GEONODE_CLIENT_LOCATION }}theme/ux/fileuploadfield/fileuploadfield.css"/>
+
+{{ block.super }}
+{% endblock %}
+
+{% block main %}
+<div class="twocol">
+    <h2>{% trans "Add data" %}</h2>
+    
+    <a href="{% url data_upload_status %}">Go to your past uploads</a>
+
+    {% if incomplete %}
+    
+    <h3>Incomplete Uploads</h3>
+    <p>You have the following incomplete uploads:</p>
+    {% for u in incomplete %}
+    <div class="clearfix" style="border: 1px solid gray; padding: .5em; margin: .5em">
+        <div style="float:left">{{ u.name }}, last updated on {{ u.date }}</div>
+        <div class="upload_actions" style="float:right">
+            <a class="btn btn-mini" href="{{ u.get_resume_url }}">Resume</a>
+            <a class="btn btn-mini" href="{{ u.get_delete_url }}">Delete</a>
+        </div>
+    </div>
+    {% endfor %}
+    {% endif %}
+    {% block additional_info %}{% endblock %}
+
+  {% if errors %}
+    <div id="errors">
+      {% for error in errors %}
+        <div>{{ error }}</div>
+      {% endfor %}
+    </div>
+  {% endif %}
+
+{% if enough_storage %}
+  <!-- Start of uploader form -->
+
+  <div id="drop-zone"></div>
+
+  <form id="file-uploader" method="post" enctype="multipart/form-data">
+    <input class="btn" id="file-input" type="file" multiple>
+  </form>
+
+  <div>
+    <ul id="global-errors"></ul>
+    <h2>{% trans "Files to be uploaded" %}</h2>
+    <div id="file-queue">
+    </div>
+  </div>
+
+  <a href="#" id="upload-button" class="btn">Upload files</a>
+  <!-- End of uploader form -->
+
+{% endif %}
+</div>
+{% endblock %}
+
+
+{% block sidebar %}
+<div class="threecol">    
+{% if enough_storage %}
+<div>
+  <h3>Supported Files</h3>
+  <p><strong>ZIP:</strong> vector or raster layers</p>
+  <p><strong>Vector layers:</strong>SHP, DBF, SHX are required. PRJ
+  required if layer is not EPSG:4326. SLD optional</p>
+  <p><strong>Raster layers:</strong> GEOTIFF required. WORLD, PRJ,
+  files should be included if the original layer data included
+  them</p>
+</div>
+<div id="permissions_form"></div>
+</div>
+{% endif %}
+{% endblock %}
+
+
+
+{% block footer-extend %}
+
+<script src="{% static "underscore-min.js" %}"></script>
+<script src="{% static "fileupload/js/jquery.iframe-transport.js" %}"></script>
+<script src="{% static "script/layer_upload.js" %}"></script>
+
+<script type="text/javascript">
+{% autoescape off %}
+
+$(function() { 
+
+  UPLOAD.initialize({
+     csrf_token : "{{ csrf_token }}",
+     form_target : "{% url data_upload %}",
+     user_lookup : "{% url geonode.views.ajax_lookup %}",
+     upload_button: "#upload-button",
+     file_queue: "#file-queue",
+     form: "#file-uploader"
+  });
+
+});
+
+{% endautoescape %}
+</script>
+
+{% endblock %}

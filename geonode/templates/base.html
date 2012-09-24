@@ -42,6 +42,7 @@
     <!--[if lt IE 9]>
       <script src="https://html5shim.googlecode.com/svn/trunk/html5.js"></script>
     <![endif]-->
+    {% block extra_head %}{% endblock extra_head %}
   </head>
   <body class="{% block body_class %}{% endblock %}">
     <div class="navbar navbar-fixed-top">
@@ -144,7 +145,7 @@
       </footer>
     </div>
 
-    <script src="{{ STATIC_URL }}bootstrap/js/jquery-1.7.1.min.js"></script>
+    <script src="{{ STATIC_URL }}jquery-1.8.0.js"></script>
     <script src="{{ STATIC_URL }}bootstrap/js/bootstrap.min.js"></script>
     <script src="{{ STATIC_URL }}datatables/js/jquery.dataTables.min.js"></script>
     <script src="{{ STATIC_URL }}geonode/js/hogan.js"></script>
@@ -155,6 +156,7 @@
 
     {% block extra_script %}{% endblock extra_script %}
     <script type="text/javascript">
+
     $(function() {
       $("input.user-select").select2({
         placeholder: {title: '{% trans "Add User..." %}', id: ""},
@@ -201,9 +203,15 @@
       $("input.asset-selector").live("change", toggle_buttons);
       toggle_buttons();
     });
+
     </script>
 
     <script type="text/javascript" src="{% url django.views.i18n.javascript_catalog %}"></script>
     <script type="text/javascript" src="{% url lang %}"></script>
+
+    {% block footer-extend %}
+    
+    {% endblock %}
+
   </body>
 </html>
