@@ -1,3 +1,22 @@
+#########################################################################
+#
+# Copyright (C) 2012 OpenPlans
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program. If not, see <http://www.gnu.org/licenses/>.
+#
+#########################################################################
+
 import datetime
 import os
 import subprocess
@@ -16,8 +35,9 @@ from django.shortcuts import get_object_or_404
 from django.utils import simplejson as json
 from owslib.wms import WebMapService
 from owslib.csw import CatalogueServiceWeb
+from django.http import HttpResponse
 
-from geonode import GeoNodeException
+# from geonode import GeoNodeException
 #from geonode.layers.models import Layer
 #from geonode.maps.models import Map
 from geonode.security.models import AUTHENTICATED_USERS, ANONYMOUS_USERS
@@ -345,7 +365,7 @@ class GXPMapBase(object):
         layers.extend(added_layers)
         
         server_lookup = {}
-        sources = {'local': settings.DEFAULT_LAYER_SOURCE }
+        sources = { }
 
         def uniqify(seq):
             """
@@ -546,3 +566,40 @@ def resolve_object(request, model, query, permission=None,
         mesg = permission_msg or _('Permission Denied')
         raise PermissionDenied(mesg)
     return obj
+
+
+def json_response(body=None, errors=None, redirect_to=None, exception=None, content_type=None):
+   """Create a proper JSON response. If body is provided, this is the response.
+   If errors is not None, the response is a success/errors json object.
+   If redirect_to is not None, the response is a success=True, redirect_to object
+   If the exception is provided, it will be logged. If body is a string, the
+   exception message will be used as a format option to that string and the
+   result will be a success=False, errors = body % exception
+   """
+   if errors:
+       body = {
+           'success' : False,
+           'errors' : errors
+       }
+   elif redirect_to:
+       body = {
+           'success' : True,
+           'redirect_to' : redirect_to
+       }
+   elif exception:
+       if body is None:
+           body = "Unexpected exception %s" % exception
+       else:
+           body = body % exception
+       body = {
+           'success' : False,
+           'errors' : [ body ]
+       }
+   elif body:
+       pass
+   else:
+       raise Exception("must call with body, errors or redirect_to")
+
+   if not isinstance(body, basestring):
+       body = json.dumps(body)
+   return HttpResponse(body, mimetype = "application/json")

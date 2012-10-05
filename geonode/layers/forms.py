@@ -1,4 +1,23 @@
 # -*- coding: utf-8 -*-
+#########################################################################
+#
+# Copyright (C) 2012 OpenPlans
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program. If not, see <http://www.gnu.org/licenses/>.
+#
+#########################################################################
+
 import os
 import tempfile
 import taggit
@@ -36,8 +55,8 @@ class LayerForm(forms.ModelForm):
     keywords = taggit.forms.TagField()
     class Meta:
         model = Layer
-        exclude = ('contacts','workspace', 'store', 'name', 'uuid', 'storeType', 'typename')
-
+        exclude = ('contacts','workspace', 'store', 'name', 'uuid', 'storeType', 'typename',
+                   'bbox_x0', 'bbox_x1', 'bbox_y0', 'bbox_y1', 'srid')
 
 class LayerUploadForm(forms.Form):
     base_file = forms.FileField()
@@ -50,8 +69,11 @@ class LayerUploadForm(forms.Form):
     def clean(self):
         cleaned = super(LayerUploadForm, self).clean()
         base_name, base_ext = os.path.splitext(cleaned["base_file"].name)
-        if base_ext.lower() not in (".shp", ".tif", ".tiff", ".geotif", ".geotiff"):
-            raise forms.ValidationError("Only Shapefiles and GeoTiffs are supported. You uploaded a %s file" % base_ext)
+        if base_ext.lower() == '.zip':
+            # for now, no verification, but this could be unified
+            pass
+        elif base_ext.lower() not in (".shp", ".tif", ".tiff", ".geotif", ".geotiff", ".csv"):
+            raise forms.ValidationError("Only Shapefiles, GeoTiffs, and CSV files are supported. You uploaded a %s file" % base_ext)
         if base_ext.lower() == ".shp":
             dbf_file = cleaned["dbf_file"]
             shx_file = cleaned["shx_file"]

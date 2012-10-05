@@ -1,4 +1,23 @@
 # -*- coding: utf-8 -*-
+#########################################################################
+#
+# Copyright (C) 2012 OpenPlans
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program. If not, see <http://www.gnu.org/licenses/>.
+#
+#########################################################################
+
 import httplib2
 import urllib
 import logging
@@ -15,6 +34,7 @@ from django.db.models import signals
 from django.contrib.auth.models import User
 from django.utils.translation import ugettext_lazy as _
 from django.utils.safestring import mark_safe
+from django.core.urlresolvers import reverse
 
 from geonode import GeoNodeException
 from geonode.utils import _wms, _user, _password, get_wms, bbox_to_wkt
@@ -28,6 +48,8 @@ from geonode.layers.enumerations import COUNTRIES, ALL_LANGUAGES, \
     TOPIC_CATEGORIES, DEFAULT_SUPPLEMENTAL_INFORMATION, LINK_TYPES
 
 from geoserver.catalog import Catalog
+from gsuploader.uploader import Uploader
+
 from taggit.managers import TaggableManager
 
 
@@ -40,7 +62,7 @@ class LayerManager(models.Manager):
         models.Manager.__init__(self)
         url = "%srest" % settings.GEOSERVER_BASE_URL
         self.gs_catalog = Catalog(url, _user, _password)
-
+        self.gs_uploader = Uploader(url, _user, _password)
 
     def admin_contact(self):
         # this assumes there is at least one superuser
@@ -110,63 +132,55 @@ class LayerManager(models.Manager):
                 print >> console, msg
         return output
 
-
-class Layer(models.Model, PermissionLevelMixin):
+class ResourceBase(models.Model, PermissionLevelMixin):
     """
-    Layer Object loosely based on ISO 19115:2003
+    Base Resource Object loosely based on ISO 19115:2003
     """
 
     VALID_DATE_TYPES = [(x.lower(), _(x)) for x in ['Creation', 'Publication', 'Revision']]
 
     # internal fields
-    objects = LayerManager()
-    workspace = models.CharField(max_length=128)
-    store = models.CharField(max_length=128)
-    storeType = models.CharField(max_length=128)
-    name = models.CharField(max_length=128)
     uuid = models.CharField(max_length=36)
-    typename = models.CharField(max_length=128, unique=True)
     owner = models.ForeignKey(User, blank=True, null=True)
 
-    contacts = models.ManyToManyField(Contact, through='ContactRole')
-
     # section 1
-    title = models.CharField(_('title'), max_length=255)
-    date = models.DateTimeField(_('date'), default = datetime.now) # passing the method itself, not the result
+    title = models.CharField(_('title'), max_length=255, help_text=_('name by which the cited resource is known'))
+    date = models.DateTimeField(_('date'), default = datetime.now, help_text=_('reference date for the cited resource')) # passing the method itself, not the result
     
-    date_type = models.CharField(_('date type'), max_length=255, choices=VALID_DATE_TYPES, default='publication')
+    date_type = models.CharField(_('date type'), max_length=255, choices=VALID_DATE_TYPES, default='publication', help_text=_('identification of when a given event occurred'))
 
-    edition = models.CharField(_('edition'), max_length=255, blank=True, null=True)
-    abstract = models.TextField(_('abstract'), blank=True)
-    purpose = models.TextField(_('purpose'), null=True, blank=True)
-    maintenance_frequency = models.CharField(_('maintenance frequency'), max_length=255, choices = [(x, x) for x in UPDATE_FREQUENCIES], blank=True, null=True)
+    edition = models.CharField(_('edition'), max_length=255, blank=True, null=True, help_text=_('version of the cited resource'))
+    abstract = models.TextField(_('abstract'), blank=True, help_text=_('brief narrative summary of the content of the resource(s)'))
+    purpose = models.TextField(_('purpose'), null=True, blank=True, help_text=_('summary of the intentions with which the resource(s) was developed'))
+
+    maintenance_frequency = models.CharField(_('maintenance frequency'), max_length=255, choices=UPDATE_FREQUENCIES, blank=True, null=True, help_text=_('frequency with which modifications and deletions are made to the data after it is first produced'))
 
     # section 2
     # see poc property definition below
 
     # section 3
-    keywords = TaggableManager(_('keywords'), blank=True, help_text=_("A space or comma-separated list of keywords"))
-    keywords_region = models.CharField(_('keywords region'), max_length=3, choices= COUNTRIES, default = 'USA')
-    constraints_use = models.CharField(_('constraints use'), max_length=255, choices = [(x, x) for x in CONSTRAINT_OPTIONS], default='copyright')
-    constraints_other = models.TextField(_('constraints other'), blank=True, null=True)
-    spatial_representation_type = models.CharField(_('spatial representation type'), max_length=255, choices=[(x,x) for x in SPATIAL_REPRESENTATION_TYPES], blank=True, null=True)
+    keywords = TaggableManager(_('keywords'), blank=True, help_text=_('commonly used word(s) or formalised word(s) or phrase(s) used to describe the subject (space or comma-separated'))
+    keywords_region = models.CharField(_('keywords region'), max_length=3, choices=COUNTRIES, default='USA', help_text=_('keyword identifies a location'))
+    constraints_use = models.CharField(_('constraints use'), max_length=255, choices=[(x, x) for x in CONSTRAINT_OPTIONS], default='copyright', help_text=_('constraints applied to assure the protection of privacy or intellectual property, and any special restrictions or limitations or warnings on using the resource or metadata'))
+    constraints_other = models.TextField(_('constraints other'), blank=True, null=True, help_text=_('other restrictions and legal prerequisites for accessing and using the resource or metadata'))
+    spatial_representation_type = models.CharField(_('spatial representation type'), max_length=255, choices=SPATIAL_REPRESENTATION_TYPES, blank=True, null=True, help_text=_('method used to represent geographic information in the dataset'))
 
     # Section 4
-    language = models.CharField(_('language'), max_length=3, choices=ALL_LANGUAGES, default='eng')
-    topic_category = models.CharField(_('topic_category'), max_length=255, choices = [(x, x) for x in TOPIC_CATEGORIES], default = 'location')
+    language = models.CharField(_('language'), max_length=3, choices=ALL_LANGUAGES, default='eng', help_text=_('language used within the dataset'))
+    topic_category = models.CharField(_('topic_category'), max_length=255, choices=TOPIC_CATEGORIES, default='location', help_text=_('high-level geographic data thematic classification to assist in the grouping and search of available geographic data sets.'))
 
     # Section 5
-    temporal_extent_start = models.DateField(_('temporal extent start'), blank=True, null=True)
-    temporal_extent_end = models.DateField(_('temporal extent end'), blank=True, null=True)
+    temporal_extent_start = models.DateField(_('temporal extent start'), blank=True, null=True, help_text=_('time period covered by the content of the dataset (start)'))
+    temporal_extent_end = models.DateField(_('temporal extent end'), blank=True, null=True, help_text=_('time period covered by the content of the dataset (end)'))
 
-    supplemental_information = models.TextField(_('supplemental information'), default=DEFAULT_SUPPLEMENTAL_INFORMATION)
+    supplemental_information = models.TextField(_('supplemental information'), default=DEFAULT_SUPPLEMENTAL_INFORMATION, help_text=_('any other descriptive information about the dataset'))
 
     # Section 6
-    distribution_url = models.TextField(_('distribution URL'), blank=True, null=True)
-    distribution_description = models.TextField(_('distribution description'), blank=True, null=True)
+    distribution_url = models.TextField(_('distribution URL'), blank=True, null=True, help_text=_('information about on-line sources from which the dataset, specification, or community profile name and extended metadata elements can be obtained'))
+    distribution_description = models.TextField(_('distribution description'), blank=True, null=True, help_text=_('detailed text description of what the online resource is/does'))
 
     # Section 8
-    data_quality_statement = models.TextField(_('data quality statement'), blank=True, null=True)
+    data_quality_statement = models.TextField(_('data quality statement'), blank=True, null=True, help_text=_('general explanation of the data producer\'s knowledge about the lineage of a dataset'))
 
     # Section 9
     # see metadata_author property definition below
@@ -191,7 +205,6 @@ class Layer(models.Model, PermissionLevelMixin):
     def geographic_bounding_box(self):
         return bbox_to_wkt(self.bbox_x0, self.bbox_x1, self.bbox_y0, self.bbox_y1, srid=self.srid )
 
-
     def eval_keywords_region(self):
         """Returns expanded keywords_region tuple'd value"""
         index = next((i for i,(k,v) in enumerate(COUNTRIES) if k==self.keywords_region),None)
@@ -200,8 +213,39 @@ class Layer(models.Model, PermissionLevelMixin):
         else:
             return self.keywords_region
 
+    @property
+    def poc_role(self):
+        role = Role.objects.get(value='pointOfContact')
+        return role
+
+    @property
+    def metadata_author_role(self):
+        role = Role.objects.get(value='author')
+        return role
+
+    def keyword_list(self):
+        return [kw.name for kw in self.keywords.all()]
+
+    class Meta:
+        abstract = True
+
+class Layer(ResourceBase):
+    """
+    Layer (inherits ResourceBase fields)
+    """
+
+    # internal fields
+    objects = LayerManager()
+    workspace = models.CharField(max_length=128)
+    store = models.CharField(max_length=128)
+    storeType = models.CharField(max_length=128)
+    name = models.CharField(max_length=128)
+    typename = models.CharField(max_length=128, unique=True)
+
+    contacts = models.ManyToManyField(Contact, through='ContactRole')
+
     def thumbnail(self):
-        """ Generate a URL representing thumbnail of the resource """
+        """ Generate a URL representing thumbnail of the layer """
 
         width = 20
         height = 20
@@ -220,16 +264,16 @@ class Layer(models.Model, PermissionLevelMixin):
     def verify(self):
         """Makes sure the state of the layer is consistent in GeoServer and Catalogue.
         """
-        
+
         # Check the layer is in the wms get capabilities record
         # FIXME: Implement caching of capabilities record site wide
 
         _local_wms = get_wms()
         record = _local_wms.contents.get(self.typename)
         if record is None:
-            msg = "WMS Record missing for layer [%s]" % self.typename 
+            msg = "WMS Record missing for layer [%s]" % self.typename
             raise GeoNodeException(msg)
-        
+
     @property
     def attribute_names(self):
         if self.storeType == "dataStore":
@@ -312,7 +356,7 @@ class Layer(models.Model, PermissionLevelMixin):
         self.publishing.styles = styles
 
     styles = property(_get_styles, _set_styles)
-    
+
     @property
     def service_type(self):
         if self.storeType == 'coverageStore':
@@ -327,15 +371,37 @@ class Layer(models.Model, PermissionLevelMixin):
             self._publishing_cache = cat.get_layer(self.name)
         return self._publishing_cache
 
-    @property
-    def poc_role(self):
-        role = Role.objects.get(value='pointOfContact')
-        return role
+    def get_absolute_url(self):
+        return "/data/%s" % (self.typename)
 
-    @property
-    def metadata_author_role(self):
-        role = Role.objects.get(value='author')
-        return role
+    def __str__(self):
+        return "%s Layer" % self.typename
+
+    class Meta:
+        # custom permissions,
+        # change and delete are standard in django
+        permissions = (('view_layer', 'Can view'),
+                       ('change_layer_permissions', "Can change permissions"), )
+
+    # Permission Level Constants
+    # LEVEL_NONE inherited
+    LEVEL_READ  = 'layer_readonly'
+    LEVEL_WRITE = 'layer_readwrite'
+    LEVEL_ADMIN = 'layer_admin'
+
+    def set_default_permissions(self):
+        self.set_gen_level(ANONYMOUS_USERS, self.LEVEL_READ)
+        self.set_gen_level(AUTHENTICATED_USERS, self.LEVEL_READ)
+
+        # remove specific user permissions
+        current_perms =  self.get_all_level_info()
+        for username in current_perms['users'].keys():
+            user = User.objects.get(username=username)
+            self.set_user_level(user, self.LEVEL_NONE)
+
+        # assign owner admin privs
+        if self.owner:
+            self.set_user_level(self.owner, self.LEVEL_ADMIN)
 
     def _set_poc(self, poc):
         # reset any poc asignation to this layer
@@ -362,18 +428,17 @@ class Layer(models.Model, PermissionLevelMixin):
     def _get_metadata_author(self):
         try:
             the_ma = ContactRole.objects.get(role=self.metadata_author_role, layer=self).contact
-        except  ContactRole.DoesNotExist:
+        except ContactRole.DoesNotExist:
             the_ma = None
         return the_ma
 
     metadata_author = property(_get_metadata_author, _set_metadata_author)
 
-
     def keyword_list(self):
         return [kw.name for kw in self.keywords.all()]
 
     def get_absolute_url(self):
-        return "/data/%s" % (self.typename)
+        return reverse('geonode.layers.views.layer_detail', None, [str(self.typename)]) 
 
     def __str__(self):
         return "%s Layer" % self.typename
@@ -435,7 +500,6 @@ class ContactRole(models.Model):
     class Meta:
         unique_together = (("contact", "layer", "role"),)
 
-
 class LinkManager(models.Manager):
     """Helper class to access links grouped by type
     """
@@ -463,8 +527,8 @@ class Link(models.Model):
        This helps avoiding the need for runtime lookups
        to the OWS server or the CSW Catalogue.
 
-       There are three types of links:
-        * original: For uploaded files (shapefiles or geotiffs)
+       There are four types of links:
+        * original: For uploaded files (Shapefiles or GeoTIFFs)
         * data: For WFS and WCS links that allow access to raw data
         * image: For WMS and TMS links
         * metadata: For CSW links
@@ -474,7 +538,7 @@ class Link(models.Model):
     link_type = models.CharField(max_length=255, choices = [(x, x) for x in LINK_TYPES])
     name = models.CharField(max_length=255, help_text='For example "View in Google Earth"')
     mime = models.CharField(max_length=255, help_text='For example "text/xml"')
-    url = models.URLField(unique=True)
+    url = models.TextField(unique=True)
 
     objects = LinkManager()
 
