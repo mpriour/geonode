@@ -97,6 +97,7 @@ STATICFILES_DIRS = [
 # INSTALLED_APPS, se there is no need to add maps/templates or admin/templates
 TEMPLATE_DIRS = (
     os.path.join(PROJECT_ROOT, "templates"),
+    os.path.join(STATICFILES_DIRS[0], "print_templates"),
 )
 
 # Location of translation files

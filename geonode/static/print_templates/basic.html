@@ -1,0 +1,7 @@
+
+<html width="{{ width|default:'512' }}" height="{{ height|default:'256' }}">
+    <h1>{% firstof map_title layer_title %}</h1>
+    <div id="mapframe">
+        {{ map_html|safe }}
+    </div>
+</html>

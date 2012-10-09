@@ -4,8 +4,7 @@ from django.http import HttpResponse
 from django.utils import simplejson as json
 from django.shortcuts import get_object_or_404
 from django.views.decorators.http import require_http_methods
-from django.template import Context, RequestContext
-from django.template import Template
+from django.template import Context, RequestContext, loader, Template
 from django.core import serializers
 from geonode.maps.models import Map
 from geonode.layers.models import Layer
@@ -25,8 +24,11 @@ def printing_print(request, templateid, mapid=None, layerid=None):
         template = Template(template_obj.contents)
     else:
         try:
-            remote_template = urllib2.urlopen(template_obj.url)
-            template = Template(remote_template.readlines())
+            if not template_obj.url.find("http", 0, 4) > -1:
+                template = loader.get_template(template_obj.url)
+            else:
+                remote_template = urllib2.urlopen(template_obj.url)
+                template = Template(remote_template.readlines())
         except Exception, e:
             return HttpResponse(
                 "Error reading or parsing remote template at %s" % template_obj.url,
