@@ -8,13 +8,19 @@ from django.template import Context, RequestContext
 from django.template import Template
 from django.core import serializers
 from geonode.maps.models import Map
+from geonode.layers.models import Layer
 from geonode.printing.models import PrintTemplate
 
 
-def printing_print(request, templateid, mapid):
+def printing_print(request, templateid, mapid=None, layerid=None):
     """interpolate the template with the given id"""
     template_obj = get_object_or_404(PrintTemplate, pk=templateid)
-    map_obj = get_object_or_404(Map, pk=mapid)
+    resource_obj = None
+    if mapid is not None:
+        resource_obj = get_object_or_404(Map, pk=mapid)
+    else:
+        resource_obj = get_object_or_404(Layer, typename=layerid)
+
     if template_obj.contents:
         template = Template(template_obj.contents)
     else:
@@ -27,7 +33,8 @@ def printing_print(request, templateid, mapid):
                 mimetype="text/plain",
                 status=500
             )
-    context = RequestContext(request, {"map":map_obj})
+    resource_map = (mapid is not None) and {"map": resource_obj} or {"layer": resource_obj}
+    context = RequestContext(request, resource_map)
     try:
         rendered = template.render(context)
     except Exception, e:
@@ -36,10 +43,7 @@ def printing_print(request, templateid, mapid):
             mimetype="text/plain",
             status=500
         )
-    """ 
-    Due to strange 404 errors on the geoserver side, I'm just returning
-    the processed template to make sure things work as expected
-    
+
     try:
         printed = urllib2.urlopen(settings.GEOSERVER_PRINT_URL, rendered)
     except Exception, e:
@@ -49,8 +53,6 @@ def printing_print(request, templateid, mapid):
             status=e.code or 500
         )
     return HttpResponse(printed, content_type="application/pdf")
-    """
-    return HttpResponse(rendered, content_type="text/html")
 
 #require_GET()
 def printing_template_list(request):
