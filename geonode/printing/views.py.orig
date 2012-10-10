@@ -33,6 +33,16 @@ def printing_print(request, templateid, resource_context):
     """interpolate the template with the given id"""
     template = get_template(templateid)
     rendered = render_template(request, template, resource_context)
+<<<<<<< HEAD
+    # try:
+    printed = urllib2.urlopen(settings.GEOSERVER_PRINT_URL + "pdf", rendered)
+    # except Exception, e:
+    #     return HttpResponse(
+    #         e.message,
+    #         mimetype="text/plain",
+    #         status=e.code or 500
+    #     )
+=======
     try:
         printed = urllib2.urlopen(settings.GEOSERVER_PRINT_URL + "pdf", rendered)
     except Exception, e:
@@ -41,6 +51,7 @@ def printing_print(request, templateid, resource_context):
             mimetype="text/plain",
             status=e.code or 500
         )
+>>>>>>> rebased
     return HttpResponse(printed, content_type="application/pdf")
 
 
@@ -48,6 +59,16 @@ def printing_preview(request, templateid, resource_context):
     """interpolate the template with the given id"""
     template = get_template(templateid)
     rendered = render_template(request, template, resource_context)
+<<<<<<< HEAD
+    # try:
+    printed = urllib2.urlopen(settings.GEOSERVER_PRINT_URL + "png", rendered)
+    # except Exception, e:
+    #     return HttpResponse(
+    #         e.message,
+    #         mimetype="text/plain",
+    #         status=e.code or 500
+    #     )
+=======
     try:
         printed = urllib2.urlopen(settings.GEOSERVER_PRINT_URL + "png", rendered)
     except Exception, e:
@@ -56,6 +77,7 @@ def printing_preview(request, templateid, resource_context):
             mimetype="text/plain",
             status=e.code or 500
         )
+>>>>>>> rebased
     return HttpResponse(printed, content_type="image/png")
 
 
@@ -74,6 +96,20 @@ def get_template(templateid):
     if template_obj.contents:
         template = Template(template_obj.contents)
     else:
+<<<<<<< HEAD
+        # try:
+        if not template_obj.url.find("http", 0, 4) > -1:
+            template = loader.get_template(template_obj.url)
+        else:
+            remote_template = urllib2.urlopen(template_obj.url)
+            template = Template(remote_template.readlines())
+        # except Exception, e:
+        #     return HttpResponse(
+        #         "Error reading or parsing remote template at %s" % template_obj.url,
+        #         mimetype="text/plain",
+        #         status=500
+        #     )
+=======
         try:
             if not template_obj.url.find("http", 0, 4) > -1:
                 template = loader.get_template(template_obj.url)
@@ -86,6 +122,7 @@ def get_template(templateid):
                 mimetype="text/plain",
                 status=500
             )
+>>>>>>> rebased
     return template
 
 
