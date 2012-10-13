@@ -7,23 +7,28 @@ from django.core import serializers
 from geonode.maps.models import Map
 from geonode.layers.models import Layer
 from geonode.printing.models import PrintTemplate
+from django.views.decorators.csrf import csrf_exempt
 
 
+@csrf_exempt
 def printing_print_map(request, templateid, mapid=None):
     resource_context = get_resource_context(mapid=mapid)
     return printing_print(request, templateid, resource_context)
 
 
+@csrf_exempt
 def printing_print_layer(request, templateid, layerid=None):
     resource_context = get_resource_context(layerid=layerid)
     return printing_print(request, templateid, resource_context)
 
 
+@csrf_exempt
 def printing_preview_map(request, templateid, mapid=None):
     resource_context = get_resource_context(mapid=mapid)
     return printing_preview(request, templateid, resource_context)
 
 
+@csrf_exempt
 def printing_preview_layer(request, templateid, layerid=None):
     resource_context = get_resource_context(layerid=layerid)
     return printing_preview(request, templateid, resource_context)
