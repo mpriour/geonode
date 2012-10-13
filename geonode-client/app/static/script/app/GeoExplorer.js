@@ -422,7 +422,7 @@ var GeoExplorer = Ext.extend(gxp.Viewer, {
             rasterStyling: true,
             actionTarget: ["treetbar", "treecontent.contextMenu"]
         }, {
-            ptype: "gxp_print",
+            ptype: "gn_print",
             openInNewWindow: true,
             includeLegend: true,
             printCapabilities: window.printCapabilities,
