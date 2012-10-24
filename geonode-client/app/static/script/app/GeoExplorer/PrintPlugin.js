@@ -7,6 +7,7 @@
  */
 
 /**
+ * @requires GeoExplorer/GeonodePrintProvider.js
  * @requires GeoExplorer/PrintPanel.js
  */
 
@@ -33,9 +34,9 @@ GeoExplorer.PrintPlugin = Ext.extend(gxp.plugins.Tool, {
     /** api: config[printService]
      *  ``String``
      *  URL of the GeoNode print service.
-     *  Defaults to 'printing/print/'
+     *  Defaults to '/printing/print/'
      */
-    printService: 'printing/print/',
+    printService: '/printing/print/',
 
     /** api: config[templateService]
      *  ``String``
@@ -43,14 +44,14 @@ GeoExplorer.PrintPlugin = Ext.extend(gxp.plugins.Tool, {
      *  Do NOT include a trailing slash
      *  Defaults to 'printing/templates'
      */
-    templateService: 'printing/templates',
+    templateService: '/printing/templates',
 
     /** api: config[previewService]
      *  ``String``
      *  URL of the GeoNode print preview service.
      *  Defaults to 'printing/preview/'
      */
-    previewService: 'printing/preview/',
+    previewService: '/printing/preview/',
 
     /** api: config[includeLegend]
      *  ``Boolean`` Should we include the legend in the print by default? Defaults to true.
@@ -104,17 +105,20 @@ GeoExplorer.PrintPlugin = Ext.extend(gxp.plugins.Tool, {
     addActions: function() {
         // don't add any action if there is no print service configured
         if (this.printService !== null) {
-
+            var provider = new GeoExplorer.GeonodePrintProvider({
+                printService: this.printService,
+                templateService: this.templateService,
+                previewService: this.previewService
+            });
             var actions = GeoExplorer.PrintPlugin.superclass.addActions.call(this, [{
                 menuText: this.menuText,
                 buttonText: this.buttonText,
                 tooltip: this.tooltip,
-                iconCls: "gn-icon-print",
+                iconCls: "gxp-icon-print",
                 handler: function() {
-                    /*var printWindow = createPrintWindow.call(this);
-                    showPrintWindow.call(this);
-                    return printWindow;*/
-                    sendPrint.call(this);
+                    provider.print(this.target.mapPanel, {
+                        mapId: this.target.mapID
+                    });
                 },
                 scope: this
             }]);
@@ -125,16 +129,7 @@ GeoExplorer.PrintPlugin = Ext.extend(gxp.plugins.Tool, {
 
 
             function sendPrint(){
-                Ext.Ajax.request({
-                    method:'POST',
-                    url: '/printing/preview/2/'+this.target.mapID,
-                    params: {
-                        map_html:mapPanel.getEl().dom.innerHTML
-                    },
-                    success:function(resp){
-                        debugger
-                    }
-                });
+
             }
 
             function destroyPrintComponents() {
