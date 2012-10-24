@@ -1,9 +1,11 @@
 import urllib2
+from cookielib import CookieJar
 from django.conf import settings
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
 from django.template import Context, loader, Template
-from django.core import serializers
+from django.utils import simplejson as json
+from django.utils import html
 from django.forms.models import model_to_dict
 from geonode.maps.models import Map
 from geonode.layers.models import Layer
@@ -40,7 +42,9 @@ def printing_print(request, templateid, resource_context, format):
     try:
         template = get_template(templateid)
         rendered = render_template(request, template, resource_context)
-        printed = urllib2.urlopen(settings.GEOSERVER_PRINT_URL + "json?format=" + format, rendered)
+        url = "%sjson?format=%s" % (settings.GEOSERVER_PRINT_URL, format)
+        print_req = urllib2.Request(url, rendered)
+        printed = urllib2.urlopen(print_req)
     except Exception, e:
         return HttpResponse(
             e.message,
@@ -82,8 +86,13 @@ def render_template(request, template, resource_context):
 #require_GET()
 def printing_template_list(request):
     """list the available templates"""
-    templates = PrintTemplate.objects.all()
+    templates = []
+    for t in PrintTemplate.objects.all():
+        data = model_to_dict(t)
+        data['content'] = html.escape(data.get('content', ''))
+        data.update({"id": t.pk})
+        templates.append(data)
     return HttpResponse(
-        serializers.serialize("json", templates),
+        json.dumps(templates),
         mimetype="application/json"
     )
