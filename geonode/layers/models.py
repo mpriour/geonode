@@ -17,6 +17,7 @@
 # along with this program. If not, see <http://www.gnu.org/licenses/>.
 #
 #########################################################################
+from urlparse import urlparse
 
 import httplib2
 import urllib
@@ -29,9 +30,11 @@ from datetime import datetime
 from lxml import etree
 
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models import signals
 from django.contrib.auth.models import User
+from django.contrib.contenttypes.models import ContentType
 from django.utils.translation import ugettext_lazy as _
 from django.utils.safestring import mark_safe
 from django.core.urlresolvers import reverse
@@ -39,51 +42,68 @@ from django.core.urlresolvers import reverse
 from geonode import GeoNodeException
 from geonode.utils import _wms, _user, _password, get_wms, bbox_to_wkt
 from geonode.gs_helpers import cascading_delete
-from geonode.people.models import Contact, Role 
+from geonode.people.models import Profile, Role
 from geonode.security.models import PermissionLevelMixin
 from geonode.security.models import AUTHENTICATED_USERS, ANONYMOUS_USERS
 from geonode.layers.ows import wcs_links, wfs_links, wms_links
 from geonode.layers.enumerations import COUNTRIES, ALL_LANGUAGES, \
-    UPDATE_FREQUENCIES, CONSTRAINT_OPTIONS, SPATIAL_REPRESENTATION_TYPES, \
-    TOPIC_CATEGORIES, DEFAULT_SUPPLEMENTAL_INFORMATION, LINK_TYPES
+    HIERARCHY_LEVELS, UPDATE_FREQUENCIES, CONSTRAINT_OPTIONS, \
+    SPATIAL_REPRESENTATION_TYPES,  TOPIC_CATEGORIES, \
+    DEFAULT_SUPPLEMENTAL_INFORMATION, LINK_TYPES
 
-from geoserver.catalog import Catalog
-from gsuploader.uploader import Uploader
-
+from geoserver.catalog import Catalog, FailedRequestError
 from taggit.managers import TaggableManager
-
+from agon_ratings.models import OverallRating
 
 logger = logging.getLogger("geonode.layers.models")
 
+class Style(models.Model):
+    """Model for storing styles.
+    """
+    name = models.CharField(_('style name'), max_length=255, unique=True)
+    sld_title = models.CharField(max_length=255, null=True, blank=True)
+    sld_body = models.TextField(_('sld text'), null=True, blank=True)
+    sld_version = models.CharField(_('sld version'), max_length=12, null=True, blank=True)
+    sld_url = models.CharField(_('sld url'), null = True, max_length=1000)
+    workspace = models.CharField(max_length=255, null=True, blank=True)
+
+    def __str__(self):
+        return "%s" % self.name
+
 
 class LayerManager(models.Manager):
-    
+
     def __init__(self):
         models.Manager.__init__(self)
         url = "%srest" % settings.GEOSERVER_BASE_URL
         self.gs_catalog = Catalog(url, _user, _password)
-        self.gs_uploader = Uploader(url, _user, _password)
+
 
     def admin_contact(self):
         # this assumes there is at least one superuser
         superusers = User.objects.filter(is_superuser=True).order_by('id')
         if superusers.count() == 0:
             raise RuntimeError('GeoNode needs at least one admin/superuser set')
-        
-        contact = Contact.objects.get_or_create(user=superusers[0], 
+
+        contact = Profile.objects.get_or_create(user=superusers[0],
                                                 defaults={"name": "Geonode Admin"})[0]
         return contact
 
-    def slurp(self, ignore_errors=True, verbosity=1, console=sys.stdout):
+    def slurp(self, ignore_errors=True, verbosity=1, console=None, owner=None, workspace=None):
         """Configure the layers available in GeoServer in GeoNode.
 
            It returns a list of dictionaries with the name of the layer,
            the result of the operation and the errors and traceback if it failed.
         """
+        if console is None:
+            console = open(os.devnull, 'w')
+
         if verbosity > 1:
             print >> console, "Inspecting the available layers in GeoServer ..."
         cat = self.gs_catalog
-        resources = cat.get_resources()
+        if workspace is not None:
+            workspace = cat.get_workspace(workspace)
+        resources = cat.get_resources(workspace=workspace)
         number = len(resources)
         if verbosity > 1:
             msg =  "Found %d layers, starting processing" % number
@@ -101,6 +121,7 @@ class LayerManager(models.Manager):
                     "typename": "%s:%s" % (workspace.name, resource.name),
                     "title": resource.title or 'No title provided',
                     "abstract": resource.abstract or 'No abstract provided',
+                    "owner": owner,
                     "uuid": str(uuid.uuid4())
                 })
 
@@ -132,6 +153,20 @@ class LayerManager(models.Manager):
                 print >> console, msg
         return output
 
+
+class TopicCategory(models.Model):
+
+    name = models.CharField(max_length=50)
+    slug = models.SlugField()
+    description = models.TextField(blank=True)
+
+    def __unicode__(self):
+        return u"{0}".format(self.name)
+
+    class Meta:
+        ordering = ("name",)
+
+
 class ResourceBase(models.Model, PermissionLevelMixin):
     """
     Base Resource Object loosely based on ISO 19115:2003
@@ -146,7 +181,7 @@ class ResourceBase(models.Model, PermissionLevelMixin):
     # section 1
     title = models.CharField(_('title'), max_length=255, help_text=_('name by which the cited resource is known'))
     date = models.DateTimeField(_('date'), default = datetime.now, help_text=_('reference date for the cited resource')) # passing the method itself, not the result
-    
+
     date_type = models.CharField(_('date type'), max_length=255, choices=VALID_DATE_TYPES, default='publication', help_text=_('identification of when a given event occurred'))
 
     edition = models.CharField(_('edition'), max_length=255, blank=True, null=True, help_text=_('version of the cited resource'))
@@ -167,7 +202,8 @@ class ResourceBase(models.Model, PermissionLevelMixin):
 
     # Section 4
     language = models.CharField(_('language'), max_length=3, choices=ALL_LANGUAGES, default='eng', help_text=_('language used within the dataset'))
-    topic_category = models.CharField(_('topic_category'), max_length=255, choices=TOPIC_CATEGORIES, default='location', help_text=_('high-level geographic data thematic classification to assist in the grouping and search of available geographic data sets.'))
+    topic_category = models.CharField(_('topic_category'), editable=False, max_length=255, choices=TOPIC_CATEGORIES, default='location')
+    category = models.ForeignKey(TopicCategory, help_text=_('high-level geographic data thematic classification to assist in the grouping and search of available geographic data sets.'), null=True, blank=True)
 
     # Section 5
     temporal_extent_start = models.DateField(_('temporal extent start'), blank=True, null=True, help_text=_('time period covered by the content of the dataset (start)'))
@@ -192,6 +228,19 @@ class ResourceBase(models.Model, PermissionLevelMixin):
     bbox_y0 = models.DecimalField(max_digits=19, decimal_places=10, blank=True, null=True)
     bbox_y1 = models.DecimalField(max_digits=19, decimal_places=10, blank=True, null=True)
     srid = models.CharField(max_length=255, default='EPSG:4326')
+
+    # CSW specific fields
+    csw_typename = models.CharField(_('CSW typename'), max_length=32, default='gmd:MD_Metadata', null=False)
+    csw_schema = models.CharField(_('CSW schema'), max_length=64, default='http://www.isotc211.org/2005/gmd', null=False)
+    csw_mdsource = models.CharField(_('CSW source'), max_length=256, default='local', null=False)
+    csw_insert_date = models.DateTimeField(_('CSW insert date'), auto_now_add=True, null=True)
+    csw_type = models.CharField(_('CSW type'), max_length=32, default='dataset', null=False, choices=HIERARCHY_LEVELS)
+    csw_anytext = models.TextField(_('CSW anytext'), null=True)
+    csw_wkt_geometry = models.TextField(_('CSW WKT geometry'), null=False, default='SRID=4326;POLYGON((-180 180,-180 90,-90 90,-90 180,-180 180))')
+
+    # metadata XML specific fields
+    metadata_uploaded = models.BooleanField(default=False)
+    metadata_xml = models.TextField(null=True, default='<gmd:MD_Metadata xmlns:gmd="http://www.isotc211.org/2005/gmd"/>', blank=True)
 
     @property
     def bbox(self):
@@ -226,8 +275,30 @@ class ResourceBase(models.Model, PermissionLevelMixin):
     def keyword_list(self):
         return [kw.name for kw in self.keywords.all()]
 
+    @property
+    def keyword_csv(self):
+        keywords_qs = self.keywords.all()
+        if keywords_qs:
+            return ','.join([kw.name for kw in keywords_qs])
+        else:
+            return ''
+
     class Meta:
         abstract = True
+
+
+def add_bbox_query(q, bbox):
+    '''modify the queryset q to limit to the provided bbox
+
+    bbox - 4 tuple of floats representing x0,x1,y0,y1
+    returns the modified query
+    '''
+    bbox = map(str, bbox) # 2.6 compat - float to decimal conversion
+    q = q.filter(bbox_x0__gte=bbox[0])
+    q = q.filter(bbox_x1__lte=bbox[1])
+    q = q.filter(bbox_y0__gte=bbox[2])
+    return q.filter(bbox_y1__lte=bbox[3])
+
 
 class Layer(ResourceBase):
     """
@@ -242,24 +313,41 @@ class Layer(ResourceBase):
     name = models.CharField(max_length=128)
     typename = models.CharField(max_length=128, unique=True)
 
-    contacts = models.ManyToManyField(Contact, through='ContactRole')
+    popular_count = models.IntegerField(default=0)
+    share_count = models.IntegerField(default=0)
 
-    def thumbnail(self):
+    contacts = models.ManyToManyField(Profile, through='ContactRole')
+
+    default_style = models.ForeignKey(Style, related_name='layer_default_style', null=True, blank=True)
+    styles = models.ManyToManyField(Style, related_name='layer_styles')
+
+    def download_links(self):
+        links = []
+        for url in self.link_set.all():
+            description = '%s (%s Format)' % (self.title, url.name)
+            links.append((self.title, description, 'WWW:DOWNLOAD-1.0-http--download', url.url))
+        abs_url = '%s%s' % (settings.SITEURL[:-1], self.get_absolute_url())
+        links.append((self.title, self.title, 'WWW:LINK-1.0-http--link', abs_url))
+        return links
+
+    def thumbnail(self, width=20, height=None):
         """ Generate a URL representing thumbnail of the layer """
 
-        width = 20
-        height = 20
-
-        return settings.GEOSERVER_BASE_URL + "wms?" + urllib.urlencode({
-            'service': 'WMS',
-            'version': '1.1.1',
-            'request': 'GetMap',
+        params = {
             'layers': self.typename,
-            'format': 'image/png',
-            'height': height,
+            'format': 'image/png8',
             'width': width,
-            'srs': self.srid,
-            'bbox': self.bbox_string})
+        }
+        if height is not None:
+            params['height'] = height
+
+        # Avoid usring urllib.urlencode here because it breaks the url.
+        # commas and slashes in values get encoded and then cause trouble
+        # with the WMS parser.
+        p = "&".join("%s=%s"%item for item in params.items())
+
+        return settings.GEOSERVER_BASE_URL + "wms/reflect?" + p
+
 
     def verify(self):
         """Makes sure the state of the layer is consistent in GeoServer and Catalogue.
@@ -275,87 +363,11 @@ class Layer(ResourceBase):
             raise GeoNodeException(msg)
 
     @property
-    def attribute_names(self):
-        if self.storeType == "dataStore":
-            dft_url = settings.GEOSERVER_BASE_URL + "wfs?" + urllib.urlencode({
-                    "service": "wfs",
-                    "version": "1.0.0",
-                    "request": "DescribeFeatureType",
-                    "typename": self.typename
-                })
-            try:
-                http = httplib2.Http()
-                http.add_credentials(_user, _password)
-                body = http.request(dft_url)[1]
-                doc = etree.fromstring(body)
-                path = ".//{xsd}extension/{xsd}sequence/{xsd}element".format(xsd="{http://www.w3.org/2001/XMLSchema}")
-                atts = [n.attrib["name"] for n in doc.findall(path)]
-            except Exception:
-                atts = []
-            return atts
-        elif self.storeType == "coverageStore":
-            dc_url = settings.GEOSERVER_BASE_URL + "wcs?" + urllib.urlencode({
-                     "service": "wcs",
-                     "version": "1.1.0",
-                     "request": "DescribeCoverage",
-                     "identifiers": self.typename
-                })
-            try:
-                http = httplib2.Http()
-                http.add_credentials(_user, _password)
-                response, body = http.request(dc_url)
-                doc = etree.fromstring(body)
-                path = ".//{wcs}Axis/{wcs}AvailableKeys/{wcs}Key".format(wcs="{http://www.opengis.net/wcs/1.1.1}")
-                atts = [n.text for n in doc.findall(path)]
-            except Exception:
-                atts = []
-            return atts
-
-    @property
     def display_type(self):
         return ({
             "dataStore" : "Vector Data",
             "coverageStore": "Raster Data",
         }).get(self.storeType, "Data")
-
-    def delete_from_geoserver(self):
-        cascading_delete(Layer.objects.gs_catalog, self.resource)
-
-    @property
-    def resource(self):
-        if not hasattr(self, "_resource_cache"):
-            cat = Layer.objects.gs_catalog
-            try:
-                ws = cat.get_workspace(self.workspace)
-                store = cat.get_store(self.store, ws)
-                self._resource_cache = cat.get_resource(self.name, store)
-            except EnvironmentError, e:
-                if e.errno == errno.ECONNREFUSED:
-                    msg = ('Could not connect to geoserver at "%s"'
-                           'to save information for layer "%s"' % (
-                            settings.GEOSERVER_BASE_URL, self.name)
-                          )
-                    logger.warn(msg, e)
-                    return None
-                else:
-                    raise e
-        return self._resource_cache
-
-    def _get_default_style(self):
-        return self.publishing.default_style
-
-    def _set_default_style(self, style):
-        self.publishing.default_style = style
-
-    default_style = property(_get_default_style, _set_default_style)
-
-    def _get_styles(self):
-        return self.publishing.styles
-
-    def _set_styles(self, styles):
-        self.publishing.styles = styles
-
-    styles = property(_get_styles, _set_styles)
 
     @property
     def service_type(self):
@@ -364,15 +376,19 @@ class Layer(ResourceBase):
         if self.storeType == 'dataStore':
             return "WFS"
 
-    @property
-    def publishing(self):
-        if not hasattr(self, "_publishing_cache"):
-            cat = Layer.objects.gs_catalog
-            self._publishing_cache = cat.get_layer(self.name)
-        return self._publishing_cache
-
     def get_absolute_url(self):
-        return "/data/%s" % (self.typename)
+        return reverse('layer_detail', args=(self.typename))
+
+    def attribute_config(self):
+        #Get custom attribute sort order and labels if any
+            cfg = {}
+            visible_attributes =  self.attribute_set.visible()
+            if (visible_attributes.count() > 0):
+                cfg["getFeatureInfo"] = {
+                    "fields":  [l.attribute for l in visible_attributes],
+                    "propertyNames":   dict([(l.attribute,l.attribute_label) for l in visible_attributes])
+                }
+            return cfg
 
     def __str__(self):
         return "%s Layer" % self.typename
@@ -438,42 +454,47 @@ class Layer(ResourceBase):
         return [kw.name for kw in self.keywords.all()]
 
     def get_absolute_url(self):
-        return reverse('geonode.layers.views.layer_detail', None, [str(self.typename)]) 
+        return reverse('geonode.layers.views.layer_detail', None, [str(self.typename)])
+
+    def tiles_url(self):
+        return self.link_set.get(name='Tiles').url
 
     def __str__(self):
         return "%s Layer" % self.typename
 
-    class Meta:
-        # custom permissions,
-        # change and delete are standard in django
-        permissions = (('view_layer', 'Can view'), 
-                       ('change_layer_permissions', "Can change permissions"), )
 
-    # Permission Level Constants
-    # LEVEL_NONE inherited
-    LEVEL_READ  = 'layer_readonly'
-    LEVEL_WRITE = 'layer_readwrite'
-    LEVEL_ADMIN = 'layer_admin'
-                 
-    def set_default_permissions(self):
-        self.set_gen_level(ANONYMOUS_USERS, self.LEVEL_READ)
-        self.set_gen_level(AUTHENTICATED_USERS, self.LEVEL_READ) 
+class AttributeManager(models.Manager):
+    """Helper class to access filtered attributes
+    """
 
-        # remove specific user permissions
-        current_perms =  self.get_all_level_info()
-        for username in current_perms['users'].keys():
-            user = User.objects.get(username=username)
-            self.set_user_level(user, self.LEVEL_NONE)
+    def visible(self):
+       return self.get_query_set().filter(visible=True).order_by('display_order')
 
-        # assign owner admin privs
-        if self.owner:
-            self.set_user_level(self.owner, self.LEVEL_ADMIN)
+
+class Attribute(models.Model):
+    """
+        Auxiliary model for storing layer attributes.
+
+       This helps reduce the need for runtime lookups
+       to GeoServer, and lets users customize attribute titles,
+       sort order, and visibility.
+    """
+    layer = models.ForeignKey(Layer, blank=False, null=False, unique=False, related_name='attribute_set')
+    attribute = models.CharField(_('attribute name'), help_text=_('name of attribute as stored in shapefile/spatial database'), max_length=255, blank=False, null=True, unique=False)
+    attribute_label = models.CharField(_('attribute label'), help_text=_('title of attribute as displayed in GeoNode'), max_length=255, blank=False, null=True, unique=False)
+    attribute_type = models.CharField(_('attribute type'), help_text=_('the data type of the attribute (integer, string, geometry, etc)'), max_length=50, blank=False, null=False, default='xsd:string', unique=False)
+    visible = models.BooleanField(_('visible?'), help_text=_('specifies if the attribute should be displayed in identify results'), default=True)
+    display_order = models.IntegerField(_('display order'), help_text=_('specifies the order in which attribute should be displayed in identify results'), default=1)
+    objects = AttributeManager()
+
+    def __str__(self):
+        return "%s" % self.attribute_label if self.attribute_label else self.attribute
 
 class ContactRole(models.Model):
     """
-    ContactRole is an intermediate model to bind Contacts and Layers and apply roles.
+    ContactRole is an intermediate model to bind Profiles as Contacts to Layers and apply roles.
     """
-    contact = models.ForeignKey(Contact)
+    contact = models.ForeignKey(Profile)
     layer = models.ForeignKey(Layer, null=True)
     role = models.ForeignKey(Role)
 
@@ -518,7 +539,7 @@ class LinkManager(models.Manager):
 
     def original(self):
         return self.get_query_set().filter(link_type='original')
-        
+
 
 
 class Link(models.Model):
@@ -534,19 +555,21 @@ class Link(models.Model):
         * metadata: For CSW links
     """
     layer = models.ForeignKey(Layer)
-    extension = models.CharField(max_length=255, help_text='For example "kml"')
+    extension = models.CharField(max_length=255, help_text=_('For example "kml"'))
     link_type = models.CharField(max_length=255, choices = [(x, x) for x in LINK_TYPES])
-    name = models.CharField(max_length=255, help_text='For example "View in Google Earth"')
-    mime = models.CharField(max_length=255, help_text='For example "text/xml"')
-    url = models.TextField(unique=True)
+    name = models.CharField(max_length=255, help_text=_('For example "View in Google Earth"'))
+    mime = models.CharField(max_length=255, help_text=_('For example "text/xml"'))
+    url = models.TextField(unique=True, max_length=1000)
 
     objects = LinkManager()
 
 
-def geoserver_pre_delete(instance, sender, **kwargs): 
+def geoserver_pre_delete(instance, sender, **kwargs):
     """Removes the layer from GeoServer
     """
-    instance.delete_from_geoserver()
+    ct = ContentType.objects.get_for_model(instance)
+    OverallRating.objects.filter(content_type = ct, object_id = instance.id).delete()
+    cascading_delete(Layer.objects.gs_catalog, instance.typename)
 
 
 def pre_save_layer(instance, sender, **kwargs):
@@ -583,18 +606,24 @@ def geoserver_pre_save(instance, sender, **kwargs):
     try:
         gs_catalog = Catalog(url, _user, _password)
         gs_resource = gs_catalog.get_resource(instance.name)
-    except EnvironmentError, e:
+    except (EnvironmentError, FailedRequestError) as e:
         gs_resource = None
-        if e.errno == errno.ECONNREFUSED:
-            msg = ('Could not connect to geoserver at "%s"'
-                   'to save information for layer "%s"' % (
-                    settings.GEOSERVER_BASE_URL, instance.name)
-                  )
-            logger.warn(msg, e)
-            # If geoserver is not online, there is no need to continue
-            return
-        else:
-            raise e
+        msg = ('Could not connect to geoserver at "%s"'
+               'to save information for layer "%s"' % (
+                settings.GEOSERVER_BASE_URL, instance.name)
+              )
+        logger.warn(msg, e)
+        # If geoserver is not online, there is no need to continue
+        return
+
+    # If there is no resource returned it could mean one of two things:
+    # a) There is a syncronization problem in geoserver
+    # b) The unit tests are running and another geoserver is running in the
+    # background.
+    # For both cases it is sensible to stop processing the layer
+    if gs_resource is None:
+        logger.warn('Could not get geoserver resource for %s' % instance)
+        return
 
     gs_resource.title = instance.title
     gs_resource.abstract = instance.abstract
@@ -608,21 +637,22 @@ def geoserver_pre_save(instance, sender, **kwargs):
     gs_resource.metadata_links = metadata_links
     gs_catalog.save(gs_resource)
 
-    publishing = gs_catalog.get_layer(instance.name)
- 
+    gs_layer = gs_catalog.get_layer(instance.name)
+
     if instance.poc and instance.poc.user:
-        publishing.attribution = str(instance.poc.user)
-        profile = Contact.objects.get(user=instance.poc.user)
-        publishing.attribution_link = settings.SITEURL[:-1] + profile.get_absolute_url()
-        gs_catalog.save(publishing)
+        gs_layer.attribution = str(instance.poc.user)
+        profile = Profile.objects.get(user=instance.poc.user)
+        gs_layer.attribution_link = settings.SITEURL[:-1] + profile.get_absolute_url()
+        gs_catalog.save(gs_layer)
 
     """Get information from geoserver.
 
        The attributes retrieved include:
-       
+
        * Bounding Box
        * SRID
        * Download links (WMS, WCS or WFS and KML)
+       * Styles (SLD)
     """
     gs_resource = gs_catalog.get_resource(instance.name)
 
@@ -638,9 +668,6 @@ def geoserver_pre_save(instance, sender, **kwargs):
     instance.bbox_y0 = bbox[2]
     instance.bbox_y1 = bbox[3]
 
-
-
-
 def geoserver_post_save(instance, sender, **kwargs):
     """Save keywords to GeoServer
 
@@ -652,18 +679,23 @@ def geoserver_post_save(instance, sender, **kwargs):
     try:
         gs_catalog = Catalog(url, _user, _password)
         gs_resource = gs_catalog.get_resource(instance.name)
-    except EnvironmentError, e:
-        if e.errno == errno.ECONNREFUSED:
-            msg = ('Could not connect to geoserver at "%s"'
-                   'to save information for layer "%s"' % (
-                    settings.GEOSERVER_BASE_URL, instance.name)
-                  )
-            logger.warn(msg, e)
-            # If geoserver is not online, there is no need to continue
-            return
-        else:
-            raise e
+    except (FailedRequestError, EnvironmentError) as e:
+        msg = ('Could not connect to geoserver at "%s"'
+               'to save information for layer "%s"' % (
+                settings.GEOSERVER_BASE_URL, instance.name)
+              )
+        logger.warn(msg, e)
+        # If geoserver is not online, there is no need to continue
+        return
 
+    # If there is no resource returned it could mean one of two things:
+    # a) There is a syncronization problem in geoserver
+    # b) The unit tests are running and another geoserver is running in the
+    # background.
+    # For both cases it is sensible to stop processing the layer
+    if gs_resource is None:
+        logger.warn('Could not get geoserver resource for %s' % instance)
+        return
 
     gs_resource.keywords = instance.keyword_list()
     gs_catalog.save(gs_resource)
@@ -751,10 +783,129 @@ def geoserver_post_save(instance, sender, **kwargs):
                         )
                        )
 
+    tile_url = ('%sgwc/service/gmaps?' % settings.GEOSERVER_BASE_URL +
+                'layers=%s' % instance.typename +
+                '&zoom={z}&x={x}&y={y}' +
+                '&format=image/png8'
+                )
 
+    instance.link_set.get_or_create(url=tile_url,
+                       defaults=dict(
+                        extension='tiles',
+                        name=_("Tiles"),
+                        mime='text/png',
+                        link_type='image',
+                        )
+                       )
+
+    #Save layer attributes
+    set_attributes(instance)
+
+    #Save layer styles
+    set_styles(instance, gs_catalog)
+
+def set_styles(layer, gs_catalog):
+    style_set = []
+    gs_layer = gs_catalog.get_layer(layer.name)
+    default_style = gs_layer.default_style
+    layer.default_style = save_style(default_style)
+    style_set.append(layer.default_style)
+
+    alt_styles = gs_layer.styles
+
+    for alt_style in alt_styles:
+        style_set.append(save_style(alt_style))
+
+    layer.styles = style_set
+
+def save_style(gs_style):
+    style, created = Style.objects.get_or_create(name = gs_style.sld_name)
+    style.sld_title = gs_style.sld_title
+    style.sld_body = gs_style.sld_body
+    style.sld_url = gs_style.body_href()
+    style.save()
+    return style
+
+def set_attributes(layer):
+    """
+    Retrieve layer attribute names & types from Geoserver,
+    then store in GeoNode database using Attribute model
+    """
+
+    #Appending authorizations seems necessary to avoid 'layer not found' from GeoServer
+    http = httplib2.Http()
+    http.add_credentials(_user, _password)
+    _netloc = urlparse(settings.GEOSERVER_BASE_URL).netloc
+    http.authorizations.append(
+        httplib2.BasicAuthentication(
+            (_user, _password),
+            _netloc,
+            settings.GEOSERVER_BASE_URL,
+                {},
+            None,
+            None,
+            http
+        )
+    )
+
+    attribute_map = []
+    if layer.storeType == "dataStore":
+        dft_url = settings.GEOSERVER_BASE_URL + "wfs?" + urllib.urlencode({
+            "service": "wfs",
+            "version": "1.0.0",
+            "request": "DescribeFeatureType",
+            "typename": layer.typename,
+            })
+        try:
+            body = http.request(dft_url)[1]
+            doc = etree.fromstring(body)
+            path = ".//{xsd}extension/{xsd}sequence/{xsd}element".format(xsd="{http://www.w3.org/2001/XMLSchema}")
+            attribute_map = [[n.attrib["name"],n.attrib["type"]] for n in doc.findall(path)]
+        except Exception:
+            attribute_map = []
+    elif layer.storeType == "coverageStore":
+        dc_url = settings.GEOSERVER_BASE_URL + "wcs?" + urllib.urlencode({
+            "service": "wcs",
+            "version": "1.1.0",
+            "request": "DescribeCoverage",
+            "identifiers": layer.typename
+        })
+        try:
+            response, body = http.request(dc_url)
+            doc = etree.fromstring(body)
+            path = ".//{wcs}Axis/{wcs}AvailableKeys/{wcs}Key".format(wcs="{http://www.opengis.net/wcs/1.1.1}")
+            attribute_map = [[n.text,"raster"] for n in doc.findall(path)]
+        except Exception:
+            attribute_map = []
+
+    attributes = layer.attribute_set.all()
+    # Delete existing attributes if they no longer exist in an updated layer
+    for la in attributes:
+        lafound = False
+        for field, ftype in attribute_map:
+            if field == la.attribute:
+                lafound = True
+        if not lafound:
+            logger.debug("Going to delete [%s] for [%s]", la.attribute, layer.name)
+            la.delete()
+
+    # Add new layer attributes if they don't already exist
+    if attribute_map is not None:
+        iter = len(Attribute.objects.filter(layer=layer)) + 1
+        for field, ftype in attribute_map:
+            if field is not None:
+                la, created = Attribute.objects.get_or_create(layer=layer, attribute=field, attribute_type=ftype)
+                if created:
+                    la.attribute_label = field.title()
+                    la.visible = ftype.find("gml:") != 0
+                    la.display_order = iter
+                    la.save()
+                    iter += 1
+                    logger.debug("Created [%s] attribute for [%s]", field, layer.name)
+    else:
+        logger.debug("No attributes found")
 
 signals.pre_save.connect(pre_save_layer, sender=Layer)
-
 signals.pre_save.connect(geoserver_pre_save, sender=Layer)
 signals.pre_delete.connect(geoserver_pre_delete, sender=Layer)
 signals.post_save.connect(geoserver_post_save, sender=Layer)

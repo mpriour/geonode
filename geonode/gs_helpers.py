@@ -21,6 +21,7 @@ from itertools import cycle, izip
 from geoserver.catalog import FailedRequestError
 import logging
 import re
+import errno
 from django.conf import settings
 
 logger = logging.getLogger("geonode.maps.gs_helpers")
@@ -30,6 +31,7 @@ _foregrounds = ["#ffbbbb", "#bbffbb", "#bbbbff", "#ffffbb", "#bbffff", "#ffbbff"
 _backgrounds = ["#880000", "#008800", "#000088", "#888800", "#008888", "#880088"]
 _marks = ["square", "circle", "cross", "x", "triangle"]
 _style_contexts = izip(cycle(_foregrounds), cycle(_backgrounds), cycle(_marks))
+_default_style_names = ["point", "line", "polygon", "raster"]
 
 def _add_sld_boilerplate(symbolizer):
     """
@@ -153,7 +155,26 @@ def fixup_style(cat, resource, style):
             cat.save(lyr)
             logger.info("Successfully updated %s", lyr)
 
-def cascading_delete(cat, resource):
+def cascading_delete(cat, layer_name):
+    resource = None
+    try:
+        if layer_name.find(':') != -1:
+            workspace, name = layer_name.split(':')
+            ws = cat.get_workspace(workspace)
+            resource = cat.get_resource(name, workspace = workspace)
+        else:
+            resource = cat.get_resource(layer_name)
+    except EnvironmentError, e: 
+      if e.errno == errno.ECONNREFUSED:
+        msg = ('Could not connect to geoserver at "%s"'
+               'to save information for layer "%s"' % (
+               settings.GEOSERVER_BASE_URL, layer_name)
+              )
+        logger.warn(msg, e)
+        return None
+      else:
+        raise e
+
     if resource is None:
         # If there is no associated resource,
         # this method can not delete anything.
@@ -166,8 +187,8 @@ def cascading_delete(cat, resource):
         store = resource.store
         styles = lyr.styles + [lyr.default_style]
         cat.delete(lyr)
-        for s in styles:
-            if s is not None:
+        for s in styles: 
+            if s is not None and s.name not in _default_style_names:
                 try:
                     cat.delete(s, purge=True)
                 except FailedRequestError as e:
