@@ -44,6 +44,7 @@ def printing_print(request, templateid, resource_context, format):
         rendered = render_template(request, template, resource_context)
         url = "%sjson?format=%s" % (settings.GEOSERVER_PRINT_URL, format)
         print_req = urllib2.Request(url, rendered)
+        print_req.add_header("X-CSRFToken", request.META.get("HTTP_X_CSRFTOKEN", None))
         printed = urllib2.urlopen(print_req)
     except Exception, e:
         return HttpResponse(

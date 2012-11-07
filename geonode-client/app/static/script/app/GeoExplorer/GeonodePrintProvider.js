@@ -194,6 +194,9 @@ GeoExplorer.GeonodePrintProvider = Ext.extend(Ext.util.Observable, {
                     this.fireEvent("printexception", this, response);
                 },
                 method: 'POST',
+                defaultHeaders : {
+                    "X-CSRFToken" : Ext.util.Cookies.get('csrftoken')
+                },
                 params: {
                     styles: styleEl.outerHTML,
                     map_html: map.getEl().dom.outerHTML,
