@@ -22,8 +22,8 @@ GeoExplorer.GeonodePrintProvider = Ext.extend(Ext.util.Observable, {
      *  URL of the GeoNode print service.
      *  Defaults to 'printing/print/'
      */
-    printService: '/printing/preview', //'/printing/print/',
-
+    printService: '/printing/preview',
+    //'/printing/print/',
     /** api: config[templateService]
      *  ``String``
      *  URL of the GeoNode print template source.
@@ -38,6 +38,14 @@ GeoExplorer.GeonodePrintProvider = Ext.extend(Ext.util.Observable, {
      *  Defaults to 'printing/preview/'
      */
     previewService: '/printing/preview/',
+
+    pageUnits: 'mm',
+
+    pageSize: 'A4',
+
+    pageOrientation: 'portrait',
+
+    pageMargins: null,
 
     activeTemplate: null,
 
@@ -172,10 +180,8 @@ GeoExplorer.GeonodePrintProvider = Ext.extend(Ext.util.Observable, {
         }
         if(this.fireEvent('beforeprint', this, map, options) !== false) {
             var mapId = options.mapId;
-            var styleEl, rulesTxt = '';
-            Ext.iterate(Ext.util.CSS.getRules(), function(k, v) {
-                rulesTxt += ' ' + v.cssText;
-            });
+            var styleEl;
+            var rulesTxt = this.buildPageStyle() + this.buildStylesText();
             styleEl = Ext.DomHelper.createDom({
                 tag: 'style',
                 type: 'text/css',
@@ -205,7 +211,6 @@ GeoExplorer.GeonodePrintProvider = Ext.extend(Ext.util.Observable, {
                 },
                 scope: this
             });
-            Ext.removeNode(styleEl);
         }
 
     },
@@ -224,6 +229,42 @@ GeoExplorer.GeonodePrintProvider = Ext.extend(Ext.util.Observable, {
         this.templates.load();
     },
     setOptions: function(options) {
+        Ext.apply(this, options);
         this.fireEvent('optionschange', this, Ext.apply({}, options));
+    },
+    buildStylesText: function() {
+        var rulesTxt = '';
+        Ext.iterate(Ext.util.CSS.getRules(), function(k, v) {
+            rulesTxt += ' ' + v.cssText;
+        });
+        return rulesTxt;
+    },
+    buildPageStyle: function(options) {
+        if(options) {
+            this.setOptions(options);
+        }
+        var units = this.pageUnits;
+        var size = this.pageSize;
+        var orientation = this.pageOrientation;
+        var margins = this.pageMargins;
+        if(Ext.isArray(size)) {
+            size = '' + size[0] + units + ' ' + size[1] + units;
+        }
+        if(Ext.isArray(margins)) {
+            for(var mtxt = '', i = margins.length - 1; i >= 0; i--) {
+                if(Ext.isString(margins[i])) {
+                    mtxt += margins[i] + ' ';
+                } else {
+                    mtxt += margins[i] + units + ' ';
+                }
+            }
+            margins = mtxt;
+        }
+        var pageStyle = '@page{ size:' + size + ' ' + orientation + '; ';
+        if(margins) {
+            pageStyle += 'margins: ' + margins + '; ';
+        }
+        pageStyle += ' }';
+        return pageStyle;
     }
 });

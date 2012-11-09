@@ -1,4 +1,5 @@
 import urllib2
+import logging
 from cookielib import CookieJar
 from django.conf import settings
 from django.http import HttpResponse
@@ -11,6 +12,8 @@ from geonode.maps.models import Map
 from geonode.layers.models import Layer
 from geonode.printing.models import PrintTemplate
 from django.views.decorators.csrf import csrf_exempt
+
+logger = logging.getLogger(__name__)
 
 
 @csrf_exempt
@@ -42,6 +45,8 @@ def printing_print(request, templateid, resource_context, format):
     try:
         template = get_template(templateid)
         rendered = render_template(request, template, resource_context)
+        print "resource context used for printing task:\n %s" % resource_context
+        print "Post Body for Print Task: \n %s" % rendered
         url = "%sjson?format=%s" % (settings.GEOSERVER_PRINT_URL, format)
         print_req = urllib2.Request(url, rendered)
         print_req.add_header("X-CSRFToken", request.META.get("HTTP_X_CSRFTOKEN", None))
@@ -90,7 +95,7 @@ def printing_template_list(request):
     templates = []
     for t in PrintTemplate.objects.all():
         data = model_to_dict(t)
-        data['content'] = html.escape(data.get('content', ''))
+        data['contents'] = html.escape(data.get('contents', ''))
         data.update({"id": t.pk})
         templates.append(data)
     return HttpResponse(

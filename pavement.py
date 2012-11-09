@@ -269,9 +269,8 @@ def start_geoserver(options):
     from geonode.settings import GEOSERVER_BASE_URL
 
     with pushd('geoserver-geonode-ext'):
-        sh(('MAVEN_OPTS="-Xmx512m -XX:MaxPermSize=256m"'
-           ' mvn jetty:run > /dev/null &'))
-
+        sh('set MAVEN_OPTS="-XX:MaxPermSize=1024m" & mvn -o jetty:run > NUL &')
+ 
     info('Starting GeoServer on %s' % GEOSERVER_BASE_URL)
     # wait for GeoServer to start
     started = waitfor(GEOSERVER_BASE_URL)

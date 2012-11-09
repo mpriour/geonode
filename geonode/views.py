@@ -22,6 +22,9 @@ from django.contrib.auth import authenticate, login
 from django.contrib.auth.models import User
 from django.http import HttpResponse
 from django.utils import simplejson as json
+from django.conf import settings
+from urllib import urlencode
+import httplib2
 
 class AjaxLoginForm(forms.Form):
     password = forms.CharField(widget=forms.PasswordInput)
@@ -82,3 +85,31 @@ def ajax_lookup(request):
         content=json.dumps(json_dict),
         mimetype='text/plain'
     )
+
+
+def geoserver(request):
+    conn = httplib2.Http()
+    # optionally provide authentication for server
+    #conn.add_credentials('admin','admin-password')
+
+    path = request.get_full_path()[len('/geoserver/'):]
+    baseurl = "".join([settings.GEOSERVER_BASE_URL, path])
+
+    if request.method == "GET":
+        if len(request.GET.items()) > 0:
+            url = "%s?%s" % (baseurl, urlencode(request.GET))
+        else:
+            url = baseurl
+        resp, cont = conn.request(url, request.method)
+        return HttpResponse(
+            content=cont,
+            mimetype=resp.get('content-type', 'text/html')
+        )
+    elif request.method == "POST":
+        url = baseurl
+        data = urlencode(request.POST)
+        resp, cont = conn.request(url, request.method, data)
+        return HttpResponse(
+            content=cont,
+            mimetype=resp.get('content-type', 'text/html')
+        )

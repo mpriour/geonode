@@ -1,6 +1,6 @@
 /**
  * Copyright (c) 2012-2012 OpenGeo
- * 
+ *
  * Published under the GPL license.
  * See https://github.com/opengeo/gxp/raw/master/license.txt for the full text
  * of the license.
@@ -8,7 +8,7 @@
 
 /**
  * @requires GeoExplorer/GeonodePrintProvider.js
- * @requires GeoExplorer/PrintPanel.js
+ * @requires GeoExplorer/GeonodePrintPanel.js
  */
 
 /** api: (define)
@@ -94,164 +94,47 @@ GeoExplorer.PrintPlugin = Ext.extend(gxp.plugins.Tool, {
      */
     previewText: "Print Preview",
 
-    /** private: method[constructor]
-     */
-    constructor: function(config) {
-        GeoExplorer.PrintPlugin.superclass.constructor.apply(this, arguments);
-    },
+    printProvider: null,
 
     /** api: method[addActions]
      */
     addActions: function() {
         // don't add any action if there is no print service configured
-        if (this.printService !== null) {
-            var provider = new GeoExplorer.GeonodePrintProvider({
+        if(this.printService !== null) {
+            var provider = new GeoExplorer.GeonodePrintProvider(Ext.apply({
                 printService: this.printService,
                 templateService: this.templateService,
                 previewService: this.previewService
-            });
-            var actions = GeoExplorer.PrintPlugin.superclass.addActions.call(this, [{
+            }, this.initialConfig.controlConfig));
+            this.printProvider = provider;
+            var actions = [{
                 menuText: this.menuText,
                 buttonText: this.buttonText,
                 tooltip: this.tooltip,
                 iconCls: "gxp-icon-print",
-                handler: function() {
-                    provider.print(this.target.mapPanel, {
-                        mapId: this.target.mapID
-                    });
-                },
                 scope: this
-            }]);
-
-            var printButton = actions[0].items[0];
-
-            var printWindow;
-
-
-            function sendPrint(){
-
-            }
-
-            function destroyPrintComponents() {
-                if (printWindow) {
-                    // TODO: fix this in GeoExt
-                    try {
-                        var panel = printWindow.items.first();
-                        panel.printMapPanel.printPage.destroy();
-                        //panel.printMapPanel.destroy();
-                    } catch (err) {
-                        // TODO: improve destroy
-                    }
-                    printWindow = null;
-                }
-            }
-
-            var mapPanel = this.target.mapPanel;
-
-            function createPrintWindow() {
-                var legend = null;
-                if (this.includeLegend === true) {
-                    var key, tool;
-                    for (key in this.target.tools) {
-                        tool = this.target.tools[key];
-                        if (tool.ptype === "gxp_legend") {
-                            legend = tool.getLegendPanel();
-                            break;
-                        }
-                    }
-                    // if not found, look for a layer manager instead
-                    if (legend === null) {
-                        for (key in this.target.tools) {
-                            tool = this.target.tools[key];
-                            if (tool.ptype === "gxp_layermanager") {
-                                legend = tool;
-                                break;
-                            }
-                        }
-                    }
-                }
-                printWindow = new Ext.Window({
-                    title: this.previewText,
-                    modal: true,
-                    border: false,
-                    autoHeight: true,
-//                    resizable: false,
-                    width: 360,
-                    items: [
-                        new GeoExplorer.PrintPanel({
-                            minWidth: 336,
-                            mapTitle: this.target.about && this.target.about["title"],
-                            comment: this.target.about && this.target.about["abstract"],
-                            printMapPanel: {
-                                autoWidth: true,
-                                height: Math.min(420, Ext.get(document.body).getHeight()-150),
-                                limitScales: true,
-                                map: Ext.applyIf({
-                                    controls: [
-                                        new OpenLayers.Control.Navigation({
-                                            zoomWheelEnabled: false,
-                                            zoomBoxEnabled: false
-                                        }),
-                                        new OpenLayers.Control.PanPanel(),
-                                        new OpenLayers.Control.ZoomPanel(),
-                                        new OpenLayers.Control.Attribution()
-                                    ],
-                                    eventListeners: {
-                                        preaddlayer: function(evt) {
-                                            return isPrintable(evt.layer);
-                                        }
-                                    }
-                                }, mapPanel.initialConfig.map),
-                                items: [{
-                                    xtype: "gx_zoomslider",
-                                    vertical: true,
-                                    height: 100,
-                                    aggressive: true
-                                }],
-                                listeners: {
-                                    afterlayout: function(evt) {
-                                        printWindow.setWidth(Math.max(360, this.getWidth() + 24));
-                                        printWindow.center();
-                                    }
-                                }
-                            },
-                            printProvider: printProvider,
-                            includeLegend: this.includeLegend,
-                            legend: legend,
-                            sourceMap: mapPanel
-                        })
-                    ],
-                    listeners: {
-                        beforedestroy: destroyPrintComponents
-                    }
-                });
-                return printWindow;
-            }
-
-            function showPrintWindow() {
-                printWindow.show();
-
-                // measure the window content width by it's toolbar
-                printWindow.setWidth(0);
-                var tb = printWindow.items.get(0).items.get(0);
-                var w = 0;
-                tb.items.each(function(item) {
-                    if(item.getEl()) {
-                        w += item.getWidth();
-                    }
-                });
-                printWindow.setWidth(
-                    Math.max(printWindow.items.get(0).printMapPanel.getWidth(),
-                    w + 20)
-                );
-                printWindow.center();
-            }
-
-            return actions;
+            }];
+            this.outputAction = 0;
+            GeoExplorer.PrintPlugin.superclass.addActions.call(this, actions);
         }
-    }
 
+    },
+    addOutput: function(config) {
+        config = Ext.applyIf(config || {}, {
+            layout: 'vbox',
+            layoutConfig:{
+                align: 'stretch'
+            },
+            width: 400,
+            height: 600,
+            ref: 'map'
+        });
+        this.outputConfig = this.outputConfig ? Ext.apply(this.outputConfig, config) : config;
+        GeoExplorer.PrintPlugin.superclass.addOutput.apply(this, [Ext.apply(config, {
+            xtype: 'gn_printpanel',
+            printProvider: this.printProvider
+        })]);
+    }
 });
 
-Ext.preg(GeoExplorer.PrintPlugin.prototype.ptype, GeoExplorer.PrintPlugin);    
-
+Ext.preg(GeoExplorer.PrintPlugin.prototype.ptype, GeoExplorer.PrintPlugin);

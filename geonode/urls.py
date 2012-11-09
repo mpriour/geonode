@@ -43,6 +43,8 @@ sitemaps = {
 
 urlpatterns = patterns('',
 
+    # geoserver proxy
+    url(r'^geoserver', 'geonode.views.geoserver'),
     # Static pages
     url(r'^$', 'django.views.generic.simple.direct_to_template',
                 {'template': 'index.html'}, name='home'),
