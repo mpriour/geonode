@@ -173,7 +173,10 @@ GeoExplorer.GeonodePrintProvider = Ext.extend(Ext.util.Observable, {
     },
 
     print: function(map, options) {
+        var printCb = this.download.createDelegate(this);
         if(options) {
+            printCb = options.callback || options.success;
+            delete options.callback, delete options.success;
             this.setOptions(options);
         } else {
             options = {};
@@ -191,10 +194,7 @@ GeoExplorer.GeonodePrintProvider = Ext.extend(Ext.util.Observable, {
                 url: this.printService + this.activeTemplate.id + '/' + mapId,
                 success: function(response) {
                     var url = Ext.decode(response.responseText).getURL;
-                    if(this.fireEvent('beforedownload', this, url) !== false) {
-                        //Requires user to un-block popups for this site to work properly
-                        window.open(url);
-                    }
+                    printCb(response, url);
                 },
                 failure: function(response) {
                     this.fireEvent("printexception", this, response);
@@ -213,6 +213,13 @@ GeoExplorer.GeonodePrintProvider = Ext.extend(Ext.util.Observable, {
             });
         }
 
+    },
+
+    download: function(resp, url){
+        if(this.fireEvent('beforedownload', this, url) !== false) {
+            //Requires user to un-block popups for this site to work properly
+            window.open(url);
+        }
     },
 
     loadTemplates: function() {

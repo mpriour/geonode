@@ -8,6 +8,8 @@ GeoExplorer.GeonodePrintPanel = Ext.extend(Ext.Panel, {
 
     paperSizes: null,
 
+    map: null,
+
     constructor: function(config) {
         config = config || {};
         var defPaperArray = [
@@ -24,11 +26,8 @@ GeoExplorer.GeonodePrintPanel = Ext.extend(Ext.Panel, {
         delete config.paperSizes;
         this.paperSizes = new Ext.data.JsonStore({
             data: paperArray,
-            fields: ['name', 'size', 'units']
-        });
-        config.listeners = Ext.apply(config.listeners || {}, {
-            'render': this.onRender,
-            scope: this
+            fields: ['name', 'size', 'units'],
+            idProperty: 'name'
         });
         GeoExplorer.GeonodePrintPanel.superclass.constructor.call(this,config);
     },
@@ -36,30 +35,32 @@ GeoExplorer.GeonodePrintPanel = Ext.extend(Ext.Panel, {
         var optionsPanelConfig = {
             xtype: 'form',
             layout: 'form',
-            ref: '../printOptions',
+            ref: 'printOptions',
             flex: 1,
+            height: 360,
             items: [{
                 xtype: 'combo',
-                ref: '../paperSizeSelect',
+                ref: 'pageSizeSelect',
                 store: this.paperSizes,
-                name: 'paperSize',
+                name: 'pageSize',
                 valueField: 'size',
                 displayField: 'name',
                 forceSelection: true,
                 fieldLabel: 'Page Size',
                 emptyText: 'Page Sizes',
-                lazyInit: true,
+                lazyInit: false,
                 listEmptyText: 'Page Sizes',
                 selectOnFocus: true,
                 triggerAction: 'all',
                 mode: 'local',
                 listeners: {
                     'select': this.onPageSizeSelect,
+                    'render': this.onPageComboRender,
                     scope: this
                 }
             }, {
                 xtype: 'combo',
-                ref: '../templateSelect',
+                ref: 'templateSelect',
                 store: this.printProvider.templates,
                 name: 'template',
                 valueField: 'id',
@@ -76,25 +77,21 @@ GeoExplorer.GeonodePrintPanel = Ext.extend(Ext.Panel, {
                     scope: this
                 }
             }, {
-                xtype: 'radiogroup',
-                fieldLabel: 'Orientation',
-                defaults:{
-                    handler: this.onOrientationChange,
-                    scope: this
-                },
-                items: [{
-                    xtype: 'radio',
-                    boxLabel: 'Portrait',
-                    name: 'orientation',
-                    inputValue: 'portait',
-                    checked: true
-                }, {
-                    xtype: 'radio',
-                    boxLabel: 'Landscape',
-                    name: 'orientation',
-                    inputValue: 'landscape',
-                    checked: false
-                }]
+                xtype: 'radio',
+                boxLabel: 'Portrait',
+                name: 'orientation',
+                inputValue: 'portait',
+                checked: true,
+                handler: this.onOrientationChange,
+                scope: this
+            }, {
+                xtype: 'radio',
+                boxLabel: 'Landscape',
+                name: 'orientation',
+                inputValue: 'landscape',
+                checked: false,
+                handler: this.onOrientationChange,
+                scope: this
             }, {
                 xtype: 'checkbox',
                 boxLabel: 'Include Legend',
@@ -106,28 +103,81 @@ GeoExplorer.GeonodePrintPanel = Ext.extend(Ext.Panel, {
             xtype: 'box',
             html: '<iframe id="printpreviewframe" src=""></iframe>',
             anchor: '100%, 100%',
+            //autoWidth: true,
+            height: Math.min(420, Ext.get(document.body).getHeight() - 150),
             //height: 'auto',
-            flex: 3
+            flex: 3,
+            ref: 'printPreview'
         };
 
         Ext.apply(this, {
-            items: [optionsPanelConfig,previewPanelConfig]
+            layout: 'vbox',
+            layoutConfig: {
+                align: 'stretch',
+                pack: 'start'
+            },
+            items: [optionsPanelConfig, previewPanelConfig]
         });
-        
-        GeoExplorer.GeonodePrintPanel.superclass.initComponent.apply(this,arguments);
+
+        GeoExplorer.GeonodePrintPanel.superclass.initComponent.apply(this, arguments);
     },
 
-    onTemplateSelect: Ext.emptyFn,
-    onPageSizeSelect: Ext.emptyFn,
-    onOrientationChange: Ext.emptyFn,
-    onRender: function(cmp){
+    onTemplateSelect: function(cmp, rec, index){
+        this.printProvider.setOptions({
+            activeTemplate: rec
+        });
+        this.getPreview();
+    },
+    onPageSizeSelect: function(cmp, rec, index){
+        this.printProvider.setOptions({
+            pageSize: cmp.getValue(),
+            pageUnits: rec.get('units')
+        });
+        this.getPreview();
+    },
+    onOrientationChange: function(cmp, checked){
+        this.printProvider.setOptions({
+            pageOrientation: cmp.getValue()
+        });
+        this.getPreview();
+    },
+    onPageComboRender: function(cmp){
         if(this.printProvider){
             var size = this.printProvider.pageSize;
             var ndx = this.paperSizes.find('name', size);
+            var paperSelect = this.printOptions.pageSizeSelect;
             if(ndx>-1){
-                this.printOptions.pageSizeSelect.setValue(store.getAt(ndx).id);
+                paperSelect.expand();
+                paperSelect.setValue(paperSelect.store.getAt(ndx)[paperSelect.valueField]);
             }
         }
+    },
+    readyToPrint: function(){
+        var ready = false;
+        var frm = this.printOptions, fields = [frm.pageSizeSelect, frm.templateSelect];
+        Ext.each(fields, function(cmp){
+            ready = cmp.selectedIndex > -1 && cmp.getValue() != cmp.emptyText;
+            return ready;
+        });
+        return ready;
+    },
+    getPreview: function(){
+        if(this.readyToPrint()){
+            this.printProvider.print(this.map, {
+                callback: this.showPreview.createDelegate(this),
+                mapId: this.mapId
+            });
+        }
+    },
+    sendToPrint: function(){
+        if(this.readyToPrint()){
+            this.printProvider.print(this.map, {
+                mapId: this.mapId
+            });
+        }
+    },
+    showPreview: function(resp, url){
+        this.printPreview.getEl().down('iframe').dom.setAttribute('src', url);
     }
 });
 

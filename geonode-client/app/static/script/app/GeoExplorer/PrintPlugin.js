@@ -115,25 +115,35 @@ GeoExplorer.PrintPlugin = Ext.extend(gxp.plugins.Tool, {
                 scope: this
             }];
             this.outputAction = 0;
+            if(!this.outputTarget) {this.outputTarget = this.target.mapPanel.id;}
             GeoExplorer.PrintPlugin.superclass.addActions.call(this, actions);
         }
 
     },
     addOutput: function(config) {
         config = Ext.applyIf(config || {}, {
-            layout: 'vbox',
-            layoutConfig:{
-                align: 'stretch'
-            },
-            width: 400,
-            height: 600,
-            ref: 'map'
+            title: this.menuText,
+            modal: true,
+            border: false,
+            //autoHeight: true,
+            //resizable: false,
+            layout: 'fit',
+            width: 360,
+            height: Ext.get(document.body).getHeight() - 50,
+            xtype: 'window'
         });
         this.outputConfig = this.outputConfig ? Ext.apply(this.outputConfig, config) : config;
-        GeoExplorer.PrintPlugin.superclass.addOutput.apply(this, [Ext.apply(config, {
-            xtype: 'gn_printpanel',
-            printProvider: this.printProvider
-        })]);
+        Ext.apply(this.outputConfig, {
+            items:[{
+                xtype: 'gn_printpanel',
+                width: 360,
+                printProvider: this.printProvider,
+                map: this.target.mapPanel,
+                mapId: this.target.mapID
+            }]
+        });
+        var output = Ext.create(this.outputConfig);
+        GeoExplorer.PrintPlugin.superclass.addOutput.apply(this, [output]);
     }
 });
 

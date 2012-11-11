@@ -6,7 +6,7 @@ GeoExplorer.TemplateStore = Ext.extend(Ext.data.JsonStore, {
         this.initialConfig = config;
         var defConfig = {
             idProperty: 'id',
-            fields: ['title', 'contents', 'url'],
+            fields: ['id', 'title', 'contents', 'url'],
             root: null
         };
         if(config.fields) {
