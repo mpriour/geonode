@@ -4,6 +4,29 @@
 Ext.namespace("GeoExplorer");
 GeoExplorer.GeonodePrintPanel = Ext.extend(Ext.Panel, {
 
+    /* begin i18n */
+    /** api: config[paperSizeText] ``String`` i18n */
+    paperSizeText: "Paper size:",
+    /** api: config[paperSizeText] ``String`` i18n */
+    printTemplateText: "Template:",
+    /** api: config[resolutionText] ``String`` i18n */
+    resolutionText: "Resolution:",
+    /** api: config[paperSizeText] ``String`` i18n */
+    emptyPaperListText: "Paper Sizes",
+    /** api: config[paperSizeText] ``String`` i18n */
+    emptyTemplateListText: "Select a Template",
+    /** api: config[printText] ``String`` i18n */
+    printText: "Print",
+    /** api: config[emptyTitleText] ``String`` i18n */
+    emptyTitleText: "Enter map title here.",
+    /** api: config[includeLegendText] ``String`` i18n */
+    includeLegendText: "Include legend?",
+    /** api: config[emptyCommentText] ``String`` i18n */
+    emptyCommentText: "Enter comments here.",
+    /** api: config[creatingPdfText] ``String`` i18n */
+    creatingPdfText: "Creating PDF...",
+    /* end i18n */
+
     printProvider: null,
 
     paperSizes: null,
@@ -22,7 +45,9 @@ GeoExplorer.GeonodePrintPanel = Ext.extend(Ext.Panel, {
             {name: 'legal', size: [8.5, 14], units: 'in'},
             {name: 'ledger', size: [11, 17], units: 'in'}
         ];
+        var defDpiArray = [[75, '75 dpi'],[150, '150 dpi'],[300, '300 dpi']];
         var paperArray = config.paperSizes || defPaperArray;
+        config.dpis = config.dpis || defDpiArray;
         delete config.paperSizes;
         this.paperSizes = new Ext.data.JsonStore({
             data: paperArray,
@@ -32,81 +57,103 @@ GeoExplorer.GeonodePrintPanel = Ext.extend(Ext.Panel, {
         GeoExplorer.GeonodePrintPanel.superclass.constructor.call(this,config);
     },
     initComponent: function() {
-        var optionsPanelConfig = {
-            xtype: 'form',
-            layout: 'form',
+        var optionsToolbarConfig = {
+            xtype: 'toolbar',
             ref: 'printOptions',
-            flex: 1,
-            height: 360,
-            items: [{
+            defaults: {
                 xtype: 'combo',
-                ref: 'pageSizeSelect',
-                store: this.paperSizes,
-                name: 'pageSize',
-                valueField: 'size',
-                displayField: 'name',
                 forceSelection: true,
-                fieldLabel: 'Page Size',
-                emptyText: 'Page Sizes',
                 lazyInit: false,
-                listEmptyText: 'Page Sizes',
                 selectOnFocus: true,
                 triggerAction: 'all',
-                mode: 'local',
+                mode: 'local'
+            },
+            items: [this.paperSizeText,{
+                ref: 'pageSizeSelect',
+                width: 100,
+                store: this.paperSizes,
+                valueField: 'size',
+                displayField: 'name',
+                emptyText: this.emptyPaperListText,
+                listEmptyText: this.emptyPaperListText,
                 listeners: {
                     'select': this.onPageSizeSelect,
                     'render': this.onPageComboRender,
                     scope: this
                 }
-            }, {
-                xtype: 'combo',
+            }, this.printTemplateText, {
                 ref: 'templateSelect',
+                width: 120,
                 store: this.printProvider.templates,
-                name: 'template',
                 valueField: 'id',
                 displayField: 'title',
-                forceSelection: true,
-                fieldLabel: 'Template',
-                emptyText: 'Select a Template',
+                emptyText: this.emptyTemplateListText,
                 lazyInit: true,
-                listEmptyText: 'Select a Template',
-                selectOnFocus: true,
-                triggerAction: 'all',
+                listEmptyText: this.emptyTemplateListText,
+                listeners: {
+                    'select': this.onTemplateSelect,
+                    scope: this
+                }
+            }, this.resolutionText, {
+                ref: 'resolutionSelect',
+                width: 90,
+                store: this.dpis,
+                value: this.dpis[1] && this.dpis[1].length && this.dpis[1][0],
                 listeners: {
                     'select': this.onTemplateSelect,
                     scope: this
                 }
             }, {
-                xtype: 'radio',
-                boxLabel: 'Portrait',
-                name: 'orientation',
-                inputValue: 'portait',
-                checked: true,
-                handler: this.onOrientationChange,
-                scope: this
-            }, {
-                xtype: 'radio',
-                boxLabel: 'Landscape',
-                name: 'orientation',
-                inputValue: 'landscape',
-                checked: false,
-                handler: this.onOrientationChange,
-                scope: this
+                xtype: 'buttongroup',
+                text: 'Orientation',
+                defaults: {
+                    scale: 'large',
+                    width: 60,
+                    iconAlign:'top',
+                    allowDepress: true,
+                    enableToggle: true,
+                    toggleGroup: 'orientation',
+                    handler: this.onOrientationChange,
+                    scope: this
+                },
+                items: [{
+                    text: 'Portrait',
+                    iconCls: 'gxp-icon-orient-portrait',
+                    value: 'portrait'
+                },{
+                    text: 'Landscape',
+                    iconCls: 'gxp-icon-orient-landscape',
+                    value: 'landscape',
+                    pressed: true
+                }]
+                
             }, {
                 xtype: 'checkbox',
                 boxLabel: 'Include Legend',
-                name: 'legend',
                 checked: false
+            },'->',{
+                xtype: 'button',
+                scale: 'large',
+                text: this.printText,
+                iconCls: "gxp-icon-print",
+                handler: function(){
+                    if(this.lastPrintLink){
+                        this.printProvider.download(null, this.lastPrintLink);
+                    } else {
+                        Ext.Msg.alert('Error', 'Please select a template first').setIcon(Ext.MessageBox.ERROR);
+                    }
+                },
+                scope: this
             }]
         };
         var previewPanelConfig = {
             xtype: 'box',
-            html: '<iframe id="printpreviewframe" src=""></iframe>',
             anchor: '100%, 100%',
             //autoWidth: true,
             height: Math.min(420, Ext.get(document.body).getHeight() - 150),
+            tpl: '<iframe style="width:100%;height:100%" src={url}></iframe>',
             //height: 'auto',
-            flex: 3,
+            //flex: 3,
             ref: 'printPreview'
         };
 
@@ -116,7 +163,7 @@ GeoExplorer.GeonodePrintPanel = Ext.extend(Ext.Panel, {
                 align: 'stretch',
                 pack: 'start'
             },
-            items: [optionsPanelConfig, previewPanelConfig]
+            items: [optionsToolbarConfig, previewPanelConfig]
         });
 
         GeoExplorer.GeonodePrintPanel.superclass.initComponent.apply(this, arguments);
@@ -137,7 +184,7 @@ GeoExplorer.GeonodePrintPanel = Ext.extend(Ext.Panel, {
     },
     onOrientationChange: function(cmp, checked){
         this.printProvider.setOptions({
-            pageOrientation: cmp.getValue()
+            pageOrientation: cmp.value
         });
         this.getPreview();
     },
@@ -177,7 +224,8 @@ GeoExplorer.GeonodePrintPanel = Ext.extend(Ext.Panel, {
         }
     },
     showPreview: function(resp, url){
-        this.printPreview.getEl().down('iframe').dom.setAttribute('src', url);
+        this.printPreview.update({'url': url});
+        this.lastPrintLink = url;
     }
 });
 
