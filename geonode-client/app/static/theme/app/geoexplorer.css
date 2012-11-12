@@ -356,7 +356,7 @@ div.overlay-scaleline {
     margin: 4px;
 }
 
-#more-info{ 
+#more-info { 
 float:right;
 }
 
@@ -376,4 +376,22 @@ float:right;
 }
 .olLayerGoogleV3.olLayerGooglePoweredBy {
     bottom: 2em !important;
+}
+
+/* geonode geoexplorer icons */
+.gxp-icon-orient-landscape {
+    background-image: url(img/silk/page_white_text_width.png)
+}
+.gxp-icon-orient-portrait {
+    background-image: url(img/silk/page_white_get.png)
+}
+
+.x-btn-large .gxp-icon-orient-landscape {
+    background-image: url(img/glyphish/152-rolodex.png)
+}
+.x-btn-large .gxp-icon-orient-portrait {
+    background-image: url(img/glyphish/179-notepad.png)
+}
+.x-btn-large .gxp-icon-print{
+    background-image: url(img/glyphish/185-printer.png)   
 }
