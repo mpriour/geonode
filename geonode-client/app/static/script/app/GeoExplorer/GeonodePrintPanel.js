@@ -36,16 +36,20 @@ GeoExplorer.GeonodePrintPanel = Ext.extend(Ext.Panel, {
     constructor: function(config) {
         config = config || {};
         var defPaperArray = [
-            {name: 'A5', size: [148, 210], units: 'mm'},
             {name: 'A4', size: [210, 297], units: 'mm'},
+            {name: 'letter', size: [8.5, 11], units: 'in'},
+            {name: 'ledger', size: [11, 17], units: 'in'},
+            {name: 'A5', size: [148, 210], units: 'mm'},
             {name: 'A3', size: [297, 420], units: 'mm'},
             {name: 'B5', size: [176, 250], units: 'mm'},
             {name: 'B4', size: [250, 353], units: 'mm'},
-            {name: 'letter', size: [8.5, 11], units: 'in'},
-            {name: 'legal', size: [8.5, 14], units: 'in'},
-            {name: 'ledger', size: [11, 17], units: 'in'}
+            {name: 'legal', size: [8.5, 14], units: 'in'}
         ];
-        var defDpiArray = [[75, '75 dpi'], [150, '150 dpi'], [300, '300 dpi']];
+        var defDpiArray = [
+            [75, '75 dpi'],
+            [150, '150 dpi'],
+            [300, '300 dpi']
+        ];
         var paperArray = config.paperSizes || defPaperArray;
         config.dpis = config.dpis || defDpiArray;
         delete config.paperSizes;
@@ -108,11 +112,12 @@ GeoExplorer.GeonodePrintPanel = Ext.extend(Ext.Panel, {
                         'select': this.onTemplateSelect,
                         scope: this
                     }
-                }]}, {
-                    xtype: 'spacer',
-                    width: 20
-                }, {
-                    xtype: 'container',
+                }]
+            }, {
+                xtype: 'spacer',
+                width: 20
+            }, {
+                xtype: 'container',
                 layout: 'table',
                 layoutConfig: {
                     columns: 2
@@ -194,140 +199,146 @@ GeoExplorer.GeonodePrintPanel = Ext.extend(Ext.Panel, {
                 }]
             }]
         };
-var previewPanelConfig = {
-    xtype: 'box',
-    disabled: true,
-    anchor: '100%, 100%',
-    //autoWidth: true,
-    //height: Math.min(420, Ext.get(document.body).getHeight() - 150),
-    tpl: '<iframe style="width:100%;height:100%" src={url}></iframe>',
-    //height: 'auto',
-    //flex: 3,
-    ref: 'printPreview'
-};
+        var previewPanelConfig = {
+            xtype: 'box',
+            disabled: true,
+            anchor: '100%, 100%',
+            //autoWidth: true,
+            //height: Math.min(420, Ext.get(document.body).getHeight() - 150),
+            tpl: '<iframe style="width:100%;height:100%" src={url}></iframe>',
+            //height: 'auto',
+            //flex: 3,
+            ref: 'printPreview'
+        };
 
-Ext.apply(this, {
-    layout: 'vbox',
-    layoutConfig: {
-        align: 'stretch',
-        pack: 'start'
+        Ext.apply(this, {
+            layout: 'vbox',
+            layoutConfig: {
+                align: 'stretch',
+                pack: 'start'
+            },
+            items: [optionsToolbarConfig, previewPanelConfig]
+        });
+
+        GeoExplorer.GeonodePrintPanel.superclass.initComponent.apply(this, arguments);
     },
-    items: [optionsToolbarConfig, previewPanelConfig]
-});
 
-GeoExplorer.GeonodePrintPanel.superclass.initComponent.apply(this, arguments);},
-
-onTemplateSelect: function(cmp, rec, index) {
-    this.printProvider.setOptions({
-        activeTemplate: rec
-    });
-    this.getPreview();
-},
-onPageSizeSelect: function(cmp, rec, index) {
-    this.printProvider.setOptions({
-        pageSize: cmp.getValue(),
-        pageUnits: rec.get('units')
-    });
-    this.getPreview();
-},
-onOrientationChange: function(cmp, checked) {
-    this.printProvider.setOptions({
-        pageOrientation: cmp.value
-    });
-    this.getPreview();
-},
-onPageComboRender: function(cmp) {
-    if(this.printProvider) {
-        var size = this.printProvider.pageSize;
-        var ndx = this.paperSizes.find('name', size);
-        var paperSelect = this.printOptions.pageSizeSelect;
-        if(ndx > -1) {
-            paperSelect.expand();
-            paperSelect.setValue(paperSelect.store.getAt(ndx)[paperSelect.valueField]);
+    onTemplateSelect: function(cmp, rec, index) {
+        this.printProvider.setOptions({
+            activeTemplate: rec
+        });
+        this.getPreview();
+    },
+    onPageSizeSelect: function(cmp, rec, index) {
+        this.printProvider.setOptions({
+            pageSize: cmp.getValue(),
+            pageUnits: rec.get('units')
+        });
+        this.getPreview();
+    },
+    onOrientationChange: function(cmp, checked) {
+        this.printProvider.setOptions({
+            pageOrientation: cmp.value
+        });
+        this.getPreview();
+    },
+    onPageComboRender: function(cmp) {
+        if(this.printProvider) {
+            var size = this.printProvider.pageSize;
+            var ndx = this.paperSizes.find('name', size);
+            var paperSelect = this.printOptions.pageSizeSelect;
+            if(ndx > -1) {
+                paperSelect.expand();
+                paperSelect.setValue(paperSelect.store.getAt(ndx)[paperSelect.valueField]);
+            }
         }
-    }
-},
-readyToPrint: function() {
-    var ready = false;
-    var frm = this.printOptions,
-        fields = [frm.pageSizeSelect, frm.templateSelect];
-    Ext.each(fields, function(cmp) {
-        ready = cmp.selectedIndex > -1 && cmp.getValue() != cmp.emptyText;
+    },
+    readyToPrint: function() {
+        var ready = false;
+        var frm = this.printOptions,
+            fields = [frm.pageSizeSelect, frm.templateSelect];
+        Ext.each(fields, function(cmp) {
+            ready = cmp.selectedIndex > -1 && cmp.getValue() != cmp.emptyText;
+            return ready;
+        });
         return ready;
-    });
-    return ready;
-},
-getPreview: function() {
-    if(this.readyToPrint()) {
-        this.printPreview.enable();
-        if(!this.busyMask){
-            this.busyMask = new Ext.LoadMask(this.printPreview.getEl(), {
+    },
+    getPreview: function() {
+        if(this.readyToPrint()) {
+            this.printPreview.enable();
+            if(!this.busyMask) {
+                this.busyMask = new Ext.LoadMask(this.printPreview.getEl(), {
                     msg: this.creatingPdfText
+                });
+            }
+            this.busyMask.show();
+            this.printProvider.print(
+            /*{
+            map: this.createPrinterMap()
+        },*/
+            this.map, {
+                callback: this.showPreview.createDelegate(this),
+                mapId: this.mapId
             });
         }
-        this.busyMask.show();
-        this.printProvider.print(/*{
+    },
+    sendToPrint: function() {
+        if(this.readyToPrint()) {
+            this.printProvider.print(
+            /*{
             map: this.createPrinterMap()
-        },*/ this.map, {
-            callback: this.showPreview.createDelegate(this),
-            mapId: this.mapId
+        },*/
+            this.map, {
+                mapId: this.mapId
+            });
+        }
+    },
+    showPreview: function(resp, url) {
+        this.busyMask.hide();
+        this.printPreview.update({
+            'url': url
         });
-    }},
-sendToPrint: function() {
-    if(this.readyToPrint()) {
-        this.printProvider.print(/*{
-            map: this.createPrinterMap()
-        },*/ this.map, {
-            mapId: this.mapId
+        this.lastPrintLink = url;
+        Ext.removeNode(Ext.getDom('printMap'));
+    },
+    createPrinterMap: function() {
+        var olmap = this.map.map;
+        var opts = this.printOptions;
+        var dpi = opts.resolutionSelect.getValue();
+        var paperDim = opts.pageSizeSelect.getValue();
+        var paperRec = opts.pageSizeSelect.findRecord(opts.pageSizeSelect.valueField, paperDim);
+        var paperUnits = paperRec.get('units');
+        //convert paperDim to printer map dimension array
+        var cfact = OpenLayers.INCHES_PER_UNIT[paperUnits] * dpi;
+        var pmapDim = [parseInt(paperDim[0] * cfact), parseInt(paperDim[1] * cfact)];
+        if(this.printProvider.pageOrientation == 'landscape') {
+            pmapDim = pmapDim.reverse();
+        }
+        //get and preserve the original map center & zoom
+        var origCZ = {
+            center: olmap.getCenter(),
+            zoom: olmap.zoom
+        };
+        //create a correctly sized map clone
+        var pmapDiv = Ext.getBody(false).appendChild(Ext.DomHelper.createDom({
+            tag: 'div',
+            id: 'printMap',
+            style: 'position:absolute; left:-2000px'
+        }));
+        pmapDiv.setSize(pmapDim[0], pmapDim[1]);
+        var mapConfig = Ext.apply(olmap.options, {
+            div: 'printMap',
+            center: undefined,
+            zoom: undefined,
+            layers: []
         });
+        Ext.each(olmap.layers, function(lyr) {
+            mapConfig.layers.push(lyr.clone());
+        });
+        var pmap = new OpenLayers.Map(mapConfig);
+        pmap.setCenter(origCZ.center, origCZ.zoom);
+        return pmap;
     }
-},
-showPreview: function(resp, url) {
-    this.busyMask.hide();
-    this.printPreview.update({
-        'url': url
-    });
-    this.lastPrintLink = url;
-    Ext.removeNode(Ext.getDom('printMap'));
-},
-createPrinterMap: function() {
-    var olmap = this.map.map;
-    var opts = this.printOptions;
-    var dpi = opts.resolutionSelect.getValue();
-    var paperDim = opts.pageSizeSelect.getValue();
-    var paperRec = opts.pageSizeSelect.findRecord(opts.pageSizeSelect.valueField, paperDim);
-    var paperUnits = paperRec.get('units');
-    //convert paperDim to printer map dimension array
-    var cfact = OpenLayers.INCHES_PER_UNIT[paperUnits] * dpi;
-    var pmapDim = [parseInt(paperDim[0] * cfact), parseInt(paperDim[1] * cfact)];
-    if(this.printProvider.pageOrientation == 'landscape') {
-        pmapDim = pmapDim.reverse();
-    }
-    //get and preserve the original map center & zoom
-    var origCZ = {
-        center: olmap.getCenter(),
-        zoom: olmap.zoom
-    };
-    //create a correctly sized map clone
-    var pmapDiv = Ext.getBody(false).appendChild(Ext.DomHelper.createDom({
-        tag: 'div',
-        id: 'printMap',
-        style: 'position:absolute; left:-2000px'
-    }));
-    pmapDiv.setSize(pmapDim[0], pmapDim[1]);
-    var mapConfig = Ext.apply(olmap.options, {
-        div: 'printMap',
-        center: undefined,
-        zoom: undefined,
-        layers: []
-    });
-    Ext.each(olmap.layers, function(lyr){
-        mapConfig.layers.push(lyr.clone());
-    });
-    var pmap = new OpenLayers.Map(mapConfig);
-    pmap.setCenter(origCZ.center, origCZ.zoom);
-    return pmap;
-}
 });
 
 /** api: xtype = gn_printpanel */
