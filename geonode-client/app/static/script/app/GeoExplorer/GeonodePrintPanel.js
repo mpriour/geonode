@@ -64,7 +64,7 @@ GeoExplorer.GeonodePrintPanel = Ext.extend(Ext.Panel, {
                 xtype: 'container',
                 layout: 'table',
                 layoutConfig: {
-                    columns: 4
+                    columns: 2
                 },
                 frame: false,
                 defaults: {
@@ -94,18 +94,6 @@ GeoExplorer.GeonodePrintPanel = Ext.extend(Ext.Panel, {
                     }
                 }, {
                     xtype: 'label',
-                    text: this.resolutionText
-                }, {
-                    ref: '../resolutionSelect',
-                    width: 120,
-                    store: this.dpis,
-                    value: this.dpis[1] && this.dpis[1].length && this.dpis[1][0],
-                    listeners: {
-                        'select': this.onTemplateSelect,
-                        scope: this
-                    }
-                }, {
-                    xtype: 'label',
                     text: this.printTemplateText
                 }, {
                     ref: '../templateSelect',
@@ -116,6 +104,37 @@ GeoExplorer.GeonodePrintPanel = Ext.extend(Ext.Panel, {
                     emptyText: this.emptyTemplateListText,
                     lazyInit: true,
                     listEmptyText: this.emptyTemplateListText,
+                    listeners: {
+                        'select': this.onTemplateSelect,
+                        scope: this
+                    }
+                }]}, {
+                    xtype: 'spacer',
+                    width: 20
+                }, {
+                    xtype: 'container',
+                layout: 'table',
+                layoutConfig: {
+                    columns: 2
+                },
+                frame: false,
+                defaults: {
+                    xtype: 'combo',
+                    forceSelection: true,
+                    lazyInit: false,
+                    selectOnFocus: true,
+                    triggerAction: 'all',
+                    mode: 'local',
+                    bodyStyle: 'padding: 2px 15px;'
+                },
+                items: [{
+                    xtype: 'label',
+                    text: this.resolutionText
+                }, {
+                    ref: '../resolutionSelect',
+                    width: 120,
+                    store: this.dpis,
+                    value: this.dpis[1] && this.dpis[1].length && this.dpis[1][0],
                     listeners: {
                         'select': this.onTemplateSelect,
                         scope: this
