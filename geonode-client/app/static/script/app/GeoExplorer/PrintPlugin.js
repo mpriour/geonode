@@ -121,6 +121,7 @@ GeoExplorer.PrintPlugin = Ext.extend(gxp.plugins.Tool, {
 
     },
     addOutput: function(config) {
+        var winHeight = parseInt(this.target.mapPanel.getHeight() * 0.75);
         config = Ext.applyIf(config || {}, {
             title: this.menuText,
             modal: true,
@@ -128,8 +129,8 @@ GeoExplorer.PrintPlugin = Ext.extend(gxp.plugins.Tool, {
             //autoHeight: true,
             //resizable: false,
             layout: 'fit',
-            width: 360,
-            height: Ext.get(document.body).getHeight() - 50,
+            width: (winHeight - 75) / 0.707,
+            height: winHeight,
             xtype: 'window'
         });
         this.outputConfig = this.outputConfig ? Ext.apply(this.outputConfig, config) : config;
