@@ -81,7 +81,7 @@ urlpatterns = patterns('',
                                        name='account_ajax_login'),
     url(r'^account/ajax_lookup$', 'geonode.views.ajax_lookup',
                                        name='account_ajax_lookup'),
-    
+
     # Meta
     url(r'^lang\.js$', 'django.views.generic.simple.direct_to_template',
          {'template': 'lang.js', 'mimetype': 'text/javascript'}, name='lang'),
@@ -92,6 +92,8 @@ urlpatterns = patterns('',
     (r'^i18n/', include('django.conf.urls.i18n')),
     (r'^admin/', include(admin.site.urls)),
 
+    # Printing
+    url(r'^printing/', include("geonode.printing.urls")),
     )
 
 urlpatterns += geonode.proxy.urls.urlpatterns
