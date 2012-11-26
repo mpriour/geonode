@@ -190,6 +190,11 @@ GeoExplorer.GeonodePrintProvider = Ext.extend(Ext.util.Observable, {
                 type: 'text/css',
                 cn: rulesTxt
             });
+            var mapEl = (map.getEl) ? map.getEl() : map;
+            mapEl.setStyle({
+                right:0,
+                top:0
+            });
             Ext.Ajax.request({
                 url: this.printService + this.activeTemplate.id + '/' + mapId,
                 success: function(response) {
@@ -205,7 +210,7 @@ GeoExplorer.GeonodePrintProvider = Ext.extend(Ext.util.Observable, {
                 },
                 params: {
                     styles: styleEl.outerHTML,
-                    map_html: map.getEl().dom.outerHTML,
+                    map_html: (map.getEl) ? map.getEl().dom.outerHTML : map.dom.outerHTML,
                     width: options.width ? options.width : map.getWidth(),
                     height: options.height ? options.height : map.getHeight()
                 },

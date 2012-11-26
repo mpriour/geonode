@@ -203,11 +203,7 @@ GeoExplorer.GeonodePrintPanel = Ext.extend(Ext.Panel, {
             xtype: 'box',
             disabled: true,
             anchor: '100%, 100%',
-            //autoWidth: true,
-            //height: Math.min(420, Ext.get(document.body).getHeight() - 150),
             tpl: '<iframe style="width:100%;height:100%" src={url}></iframe>',
-            //height: 'auto',
-            //flex: 3,
             ref: 'printPreview'
         };
 
@@ -272,23 +268,25 @@ GeoExplorer.GeonodePrintPanel = Ext.extend(Ext.Panel, {
                 });
             }
             this.busyMask.show();
-            this.printProvider.print(
-            /*{
-            map: this.createPrinterMap()
-        },*/
-            this.map, {
-                callback: this.showPreview.createDelegate(this),
-                mapId: this.mapId
-            });
+            var boundPreview = this.showPreview.createDelegate(this);
+            Ext.getBody(false).appendChild(Ext.DomHelper.createDom({
+                tag: 'div',
+                id: 'printMap',
+                style: 'position:absolute; right: 5000px; top: 0px;'
+            }));
+            var map = this.createPrinterMap(this.printProvider.print.createDelegate(
+                this.printProvider,
+                [Ext.get('printMap'),{callback: boundPreview, mapId: this.mapId}],
+                false
+            ));
         }
     },
     sendToPrint: function() {
         if(this.readyToPrint()) {
             this.printProvider.print(
-            /*{
-            map: this.createPrinterMap()
-        },*/
-            this.map, {
+            {
+                map: this.createPrinterMap()
+            },{
                 mapId: this.mapId
             });
         }
@@ -301,9 +299,10 @@ GeoExplorer.GeonodePrintPanel = Ext.extend(Ext.Panel, {
         this.lastPrintLink = url;
         Ext.removeNode(Ext.getDom('printMap'));
     },
-    createPrinterMap: function() {
+    createPrinterMap: function(callback) {
         var olmap = this.map.map;
         var opts = this.printOptions;
+        var that = this;
         var dpi = opts.resolutionSelect.getValue();
         var paperDim = opts.pageSizeSelect.getValue();
         var paperRec = opts.pageSizeSelect.findRecord(opts.pageSizeSelect.valueField, paperDim);
@@ -320,11 +319,7 @@ GeoExplorer.GeonodePrintPanel = Ext.extend(Ext.Panel, {
             zoom: olmap.zoom
         };
         //create a correctly sized map clone
-        var pmapDiv = Ext.getBody(false).appendChild(Ext.DomHelper.createDom({
-            tag: 'div',
-            id: 'printMap',
-            style: 'position:absolute; left:-2000px'
-        }));
+        var pmapDiv = Ext.get('printMap');
         pmapDiv.setSize(pmapDim[0], pmapDim[1]);
         var mapConfig = Ext.apply(olmap.options, {
             div: 'printMap',
@@ -333,7 +328,21 @@ GeoExplorer.GeonodePrintPanel = Ext.extend(Ext.Panel, {
             layers: []
         });
         Ext.each(olmap.layers, function(lyr) {
-            mapConfig.layers.push(lyr.clone());
+            lyr_clone = lyr.clone();
+            lyr_clone.events.on({
+                'loadstart': function(evt){
+                    var map = evt.object.map;
+                    map.layerQueue = map.layerQueue ? ++map.layerQueue : 1;
+                },
+                'loadend': function(evt){
+                    var map = evt.object.map;
+                    if(--map.layerQueue === 0){
+                        callback.apply(that, [map]);
+                    }
+                },
+                scope: this
+            });
+            mapConfig.layers.push(lyr_clone);
         });
         var pmap = new OpenLayers.Map(mapConfig);
         pmap.setCenter(origCZ.center, origCZ.zoom);
