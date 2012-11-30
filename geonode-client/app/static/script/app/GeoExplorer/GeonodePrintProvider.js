@@ -43,7 +43,7 @@ GeoExplorer.GeonodePrintProvider = Ext.extend(Ext.util.Observable, {
 
     pageSize: 'A4',
 
-    pageOrientation: 'portrait',
+    pageOrientation: 'landscape',
 
     pageMargins: null,
 
@@ -175,7 +175,7 @@ GeoExplorer.GeonodePrintProvider = Ext.extend(Ext.util.Observable, {
     print: function(map, options) {
         var printCb = this.download.createDelegate(this);
         if(options) {
-            printCb = options.callback || options.success;
+            printCb = options.callback || options.success || printCb;
             delete options.callback, delete options.success;
             this.setOptions(options);
         } else {
@@ -191,10 +191,6 @@ GeoExplorer.GeonodePrintProvider = Ext.extend(Ext.util.Observable, {
                 cn: rulesTxt
             });
             var mapEl = (map.getEl) ? map.getEl() : map;
-            mapEl.setStyle({
-                right:0,
-                top:0
-            });
             Ext.Ajax.request({
                 url: this.printService + this.activeTemplate.id + '/' + mapId,
                 success: function(response) {
@@ -210,9 +206,9 @@ GeoExplorer.GeonodePrintProvider = Ext.extend(Ext.util.Observable, {
                 },
                 params: {
                     styles: styleEl.outerHTML,
-                    map_html: (map.getEl) ? map.getEl().dom.outerHTML : map.dom.outerHTML,
-                    width: options.width ? options.width : map.getWidth(),
-                    height: options.height ? options.height : map.getHeight()
+                    map_html: mapEl.dom.outerHTML,
+                    width: options.width ? options.width : mapEl.getWidth() || undefined,
+                    height: options.height ? options.height : mapEl.getHeight() || undefined
                 },
                 scope: this
             });
@@ -246,9 +242,9 @@ GeoExplorer.GeonodePrintProvider = Ext.extend(Ext.util.Observable, {
     },
     buildStylesText: function() {
         var rulesTxt = '';
-        Ext.iterate(Ext.util.CSS.getRules(), function(k, v) {
+        /*Ext.iterate(Ext.util.CSS.getRules(), function(k, v) {
             rulesTxt += ' ' + v.cssText;
-        });
+        });*/
         return rulesTxt;
     },
     buildPageStyle: function(options) {
@@ -272,7 +268,8 @@ GeoExplorer.GeonodePrintProvider = Ext.extend(Ext.util.Observable, {
             }
             margins = mtxt;
         }
-        var pageStyle = '@page{ size:' + size + ' ' + orientation + '; ';
+        var pageStyle = '@page{ size:' + size + /*' ' + orientation +*/ '; ';
+        pageStyle += 'fit: meet; fit-position: center; page-break-after: avoid; page-break-inside: avoid; ';
         if(margins) {
             pageStyle += 'margins: ' + margins + '; ';
         }

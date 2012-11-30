@@ -39,16 +39,19 @@ GeoExplorer.GeonodePrintPanel = Ext.extend(Ext.Panel, {
             {name: 'A4', size: [210, 297], units: 'mm'},
             {name: 'letter', size: [8.5, 11], units: 'in'},
             {name: 'ledger', size: [11, 17], units: 'in'},
-            {name: 'A5', size: [148, 210], units: 'mm'},
             {name: 'A3', size: [297, 420], units: 'mm'},
-            {name: 'B5', size: [176, 250], units: 'mm'},
             {name: 'B4', size: [250, 353], units: 'mm'},
             {name: 'legal', size: [8.5, 14], units: 'in'}
         ];
         var defDpiArray = [
-            [75, '75 dpi'],
+            [96, '96 dpi'],
+            [96, '96 dpi']
+            /* The flying saucer printer is only printing
+            at 96 dpi for the moment
+            ,
             [150, '150 dpi'],
             [300, '300 dpi']
+            */
         ];
         var paperArray = config.paperSizes || defPaperArray;
         config.dpis = config.dpis || defDpiArray;
@@ -141,7 +144,7 @@ GeoExplorer.GeonodePrintPanel = Ext.extend(Ext.Panel, {
                     store: this.dpis,
                     value: this.dpis[1] && this.dpis[1].length && this.dpis[1][0],
                     listeners: {
-                        'select': this.onTemplateSelect,
+                        'select': this.onResolutionSelect,
                         scope: this
                     }
                 }, {
@@ -225,9 +228,16 @@ GeoExplorer.GeonodePrintPanel = Ext.extend(Ext.Panel, {
         });
         this.getPreview();
     },
+    onResolutionSelect: function(cmp, rec, index) {
+        this.getPreview();
+    },
     onPageSizeSelect: function(cmp, rec, index) {
+        var pgSize = cmp.getValue();
+        if(this.printProvider.pageOrientation == 'landscape'){
+            pgSize = pgSize.reverse();
+        }
         this.printProvider.setOptions({
-            pageSize: cmp.getValue(),
+            pageSize: pgSize,
             pageUnits: rec.get('units')
         });
         this.getPreview();
@@ -269,26 +279,43 @@ GeoExplorer.GeonodePrintPanel = Ext.extend(Ext.Panel, {
             }
             this.busyMask.show();
             var boundPreview = this.showPreview.createDelegate(this);
-            Ext.getBody(false).appendChild(Ext.DomHelper.createDom({
-                tag: 'div',
-                id: 'printMap',
-                style: 'position:absolute; right: 5000px; top: 0px;'
-            }));
-            var map = this.createPrinterMap(this.printProvider.print.createDelegate(
-                this.printProvider,
-                [Ext.get('printMap'),{callback: boundPreview, mapId: this.mapId}],
-                false
-            ));
+            /*Ext.getBody(false).appendChild(Ext.DomHelper.createDom({
+                tag: 'iframe',
+                id: 'printMapFrame',
+                style: 'position:absolute; right: -5000px; top: 0px;',
+                marginHeight: 0,
+                marginWidth: 0,
+                frameborder: 0,
+                scrolling: 'no'
+            }));*/
+            Ext.getBody(false).appendChild(
+                Ext.DomHelper.createDom({
+                    tag: 'div',
+                    id: 'printMap',
+                    style: 'position:absolute; left: -5000px; top: 0px;'
+                })
+            );
+            
+            var olmap = this.createPrinterMap();
+            /*var pmapFrameEl = Ext.get('printMapFrame'), pmapFrame=pmapFrameEl.dom;
+            if(pmapFrame.contentWindow && pmapFrame.contentWindow.stop){
+                pmapFrame.contentWindow.stop();
+            } else {
+                window.frames[0].document.execCommand('Stop');
+            }*/
+            
+            var mapEl = new Ext.Element(olmap.div).setLeft(0);
+            this.printProvider.print(mapEl,{
+                mapId: this.mapId,
+                callback: this.showPreview.createDelegate(this),
+                width: olmap.size.width,//pmapFrameEl.getWidth(),
+                height: olmap.size.height//pmapFrameEl.getHeight()
+            });
+            Ext.removeNode(mapEl.dom);
         }
     },
     sendToPrint: function() {
         if(this.readyToPrint()) {
-            this.printProvider.print(
-            {
-                map: this.createPrinterMap()
-            },{
-                mapId: this.mapId
-            });
         }
     },
     showPreview: function(resp, url) {
@@ -297,7 +324,6 @@ GeoExplorer.GeonodePrintPanel = Ext.extend(Ext.Panel, {
             'url': url
         });
         this.lastPrintLink = url;
-        Ext.removeNode(Ext.getDom('printMap'));
     },
     createPrinterMap: function(callback) {
         var olmap = this.map.map;
@@ -307,44 +333,34 @@ GeoExplorer.GeonodePrintPanel = Ext.extend(Ext.Panel, {
         var paperDim = opts.pageSizeSelect.getValue();
         var paperRec = opts.pageSizeSelect.findRecord(opts.pageSizeSelect.valueField, paperDim);
         var paperUnits = paperRec.get('units');
+
         //convert paperDim to printer map dimension array
         var cfact = OpenLayers.INCHES_PER_UNIT[paperUnits] * dpi;
         var pmapDim = [parseInt(paperDim[0] * cfact), parseInt(paperDim[1] * cfact)];
-        if(this.printProvider.pageOrientation == 'landscape') {
-            pmapDim = pmapDim.reverse();
-        }
+
         //get and preserve the original map center & zoom
         var origCZ = {
-            center: olmap.getCenter(),
+            center: olmap.getCenter().clone(),
             zoom: olmap.zoom
         };
         //create a correctly sized map clone
-        var pmapDiv = Ext.get('printMap');
-        pmapDiv.setSize(pmapDim[0], pmapDim[1]);
+        //Ext.get('printMapFrame').setSize(pmapDim[0], pmapDim[1]);
+        var pmapDiv = Ext.DomQuery.selectNode('#printMap');//,Ext.DomQuery.selectNode('#printMapFrame').contentDocument);
+        var pmapEl = new Ext.Element(pmapDiv);
+        pmapEl.setSize(pmapDim[0], pmapDim[1]);
         var mapConfig = Ext.apply(olmap.options, {
-            div: 'printMap',
             center: undefined,
             zoom: undefined,
             layers: []
         });
         Ext.each(olmap.layers, function(lyr) {
-            lyr_clone = lyr.clone();
-            lyr_clone.events.on({
-                'loadstart': function(evt){
-                    var map = evt.object.map;
-                    map.layerQueue = map.layerQueue ? ++map.layerQueue : 1;
-                },
-                'loadend': function(evt){
-                    var map = evt.object.map;
-                    if(--map.layerQueue === 0){
-                        callback.apply(that, [map]);
-                    }
-                },
-                scope: this
-            });
-            mapConfig.layers.push(lyr_clone);
+            if(lyr.getVisibility() && lyr.grid){
+                var lyr_clone = lyr.clone();
+                lyr_clone.queueTileDraw = undefined;
+                mapConfig.layers.push(lyr_clone);
+            }
         });
-        var pmap = new OpenLayers.Map(mapConfig);
+        var pmap = new OpenLayers.Map(pmapDiv, mapConfig);
         pmap.setCenter(origCZ.center, origCZ.zoom);
         return pmap;
     }

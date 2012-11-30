@@ -365,7 +365,7 @@ var GeoExplorer = Ext.extend(gxp.Viewer, {
     },
     
     loadConfig: function(config) {
-        config.sources['csw'] = {
+/*        config.sources['csw'] = {
             ptype: "gxp_cataloguesource",
             url: config.localCSWBaseUrl,
             proxyOptions: {
@@ -377,7 +377,7 @@ var GeoExplorer = Ext.extend(gxp.Viewer, {
                     }
                 }
             }
-        };
+        };*/
         config.tools = (config.tools || []).concat({
             ptype: "gxp_zoom",
             actionTarget: {target: "paneltbar", index: 4}
